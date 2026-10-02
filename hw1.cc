@@ -94,6 +94,35 @@ static inline int bucket_of(Key key) { return static_cast<int>(key >> LOW_BITS);
 // 所以每個參與排序的 rank 至少要分到這麼多元素。
 constexpr long long MIN_ELEMENTS_PER_RANK = 4096;
 
+// 最多幾個 rank 參與排序（0 = 不限制）。
+// odd-even sort 每一輪搬移的資料量和 rank 數成正比，而同一台機器上的
+// rank 共用記憶體頻寬，所以 rank 不是越多越快。
+constexpr int MAX_ACTIVE_RANKS = 0;
+
+// 計算「從 rank 0 開始、連續和 rank 0 在同一台節點上」的 rank 有幾個。
+//
+// 原因：odd-even sort 的資料只能一個鄰居一個鄰居地傳，hash 之後資料是隨機的，
+// 每一輪大約有一半的資料要穿過兩台節點之間的網路，而網路比共享記憶體慢很多。
+// 所以只讓第一台節點上的 rank 參與排序，其他節點的 rank 不分配資料
+// （仍然參與 MPI-IO 和終止判斷，這兩者規則允許使用 collective）。
+// 只取「連續」的 rank，才能保證參與排序的 rank 彼此都是相鄰的。
+static int count_ranks_on_first_node(int rank, int size) {
+    char my_host[MPI_MAX_PROCESSOR_NAME] = {};
+    char root_host[MPI_MAX_PROCESSOR_NAME] = {};
+    int len = 0;
+    MPI_Get_processor_name(my_host, &len);
+    if (rank == 0) std::memcpy(root_host, my_host, sizeof(root_host));
+    MPI_Bcast(root_host, MPI_MAX_PROCESSOR_NAME, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+    const int same_node = std::strcmp(my_host, root_host) == 0 ? 1 : 0;
+    std::vector<int> all_same(size);
+    MPI_Allgather(&same_node, 1, MPI_INT, all_same.data(), 1, MPI_INT, MPI_COMM_WORLD);
+
+    int count = 0;
+    while (count < size && all_same[count]) ++count;
+    return count;
+}
+
 struct Layout {
     int rank = 0;
     int size = 1;
@@ -109,8 +138,11 @@ static Layout make_layout(int rank, int size, int n) {
     L.rank = rank;
     L.size = size;
 
-    const long long wanted = (n + MIN_ELEMENTS_PER_RANK - 1) / MIN_ELEMENTS_PER_RANK;
-    L.active = static_cast<int>(std::max(1LL, std::min<long long>(size, wanted)));
+    // 參與排序的 rank 數 = 下面三個限制中最小的一個（至少 1 個）
+    long long active = count_ranks_on_first_node(rank, size);                      // 只用第一台節點
+    active = std::min(active, (n + MIN_ELEMENTS_PER_RANK - 1) / MIN_ELEMENTS_PER_RANK);  // 資料太少就少用幾個
+    if (MAX_ACTIVE_RANKS > 0) active = std::min<long long>(active, MAX_ACTIVE_RANKS);
+    L.active = static_cast<int>(std::max(1LL, active));
 
     // 前 rem 個 rank 多拿一個，其餘拿 base 個；rank >= active 拿 0 個
     const int base = n / L.active;
