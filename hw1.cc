@@ -97,7 +97,9 @@ constexpr long long MIN_ELEMENTS_PER_RANK = 4096;
 // 最多幾個 rank 參與排序（0 = 不限制）。
 // odd-even sort 每一輪搬移的資料量和 rank 數成正比，而同一台機器上的
 // rank 共用記憶體頻寬，所以 rank 不是越多越快。
-constexpr int MAX_ACTIVE_RANKS = 0;
+// 在課程機器上量測（test/sweep_active.sh，每組 5 次取中位數）：
+// 上限 1/2/4/8 中，4 在 big、little、mixed 都是最快或接近最快。
+constexpr int MAX_ACTIVE_RANKS = 4;
 
 // 計算「從 rank 0 開始、連續和 rank 0 在同一台節點上」的 rank 有幾個。
 //
