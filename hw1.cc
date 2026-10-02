@@ -638,13 +638,16 @@ int main(int argc, char** argv) {
     ws.scratch.resize(LARGE_BUCKET);
 
     // ---- 讀檔：直接以 32-bit 整數讀入 float 的 bit pattern ----------------------
+    // 每個 rank 讀的是連續、互不重疊的一段，所以用 independent 的 MPI_File_read_at。
+    // collective 的 read_at_all 在 NFS 上會多做資料聚合與同步，實測慢很多。
     {
         MPI_File fh;
         check_io(MPI_File_open(MPI_COMM_WORLD, input_file, MPI_MODE_RDONLY, MPI_INFO_NULL, &fh),
                  "open input", input_file);
-        check_io(MPI_File_read_at_all(fh, static_cast<MPI_Offset>(L.global_start) * sizeof(float),
+        if (L.local_n > 0)
+            check_io(MPI_File_read_at(fh, static_cast<MPI_Offset>(L.global_start) * sizeof(float),
                                       ws.keys.data(), L.local_n, MPI_UINT32_T, MPI_STATUS_IGNORE),
-                 "read input", input_file);
+                     "read input", input_file);
         MPI_File_close(&fh);
     }
     for (Key& k : ws.keys) k = float_bits_to_key(k);
@@ -688,9 +691,11 @@ int main(int argc, char** argv) {
         // 檔案原本若比較大，先截斷，避免殘留舊資料
         check_io(MPI_File_set_size(fh, static_cast<MPI_Offset>(n) * sizeof(float)),
                  "truncate output", output_file);
-        check_io(MPI_File_write_at_all(fh, static_cast<MPI_Offset>(L.global_start) * sizeof(float),
+        // 和讀檔相同，每個 rank 寫自己連續的一段，用 independent 的 write_at
+        if (L.local_n > 0)
+            check_io(MPI_File_write_at(fh, static_cast<MPI_Offset>(L.global_start) * sizeof(float),
                                        ws.keys.data(), L.local_n, MPI_UINT32_T, MPI_STATUS_IGNORE),
-                 "write output", output_file);
+                     "write output", output_file);
         MPI_File_close(&fh);
     }
 
