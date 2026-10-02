@@ -13,9 +13,13 @@ hw1_profile: hw1.cc hash.h
 test/ref: test/ref.cc hash.h
 	g++ -O2 -I. -o $@ test/ref.cc
 
-all: hw1 hw1_profile test/ref
+# 跨節點 MPI 連線測試（和 hw1 無關）
+test/mpi_ping: test/mpi_ping.cc
+	$(CXX) -O2 -o $@ test/mpi_ping.cc
+
+all: hw1 hw1_profile test/ref test/mpi_ping
 
 clean:
-	rm -f hw1 hw1_profile test/ref
+	rm -f hw1 hw1_profile test/ref test/mpi_ping
 
 .PHONY: all clean

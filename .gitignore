@@ -5,3 +5,4 @@ test/ref
 hash.h
 test/out/
 test/work/
+test/mpi_ping
