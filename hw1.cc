@@ -195,6 +195,7 @@ struct Workspace {
     std::vector<uint32_t> start;      // start[b]  = bucket b 在 keys 中的起點（共 NUM_BUCKETS+1 個）
     std::vector<uint32_t> partner_hist;
     std::vector<uint32_t> low_count;  // bucket 內 counting sort 用（也借給 compare-split 當暫存）
+    std::vector<Key> scratch;         // 小 bucket 的 radix sort 暫存（大小 LARGE_BUCKET 就夠）
 };
 
 // =============================================================================
@@ -498,14 +499,37 @@ static bool compare_split_buckets(Workspace& ws, const Layout& L, int partner) {
     return true;
 }
 
+// bucket 內排序的分界：小於這個大小用 radix_sort_low_bits，否則用 counting sort。
+// 2048 是實測的交叉點（每個 bucket 2000 筆時兩者都約 3 ns/元素）。
+constexpr uint32_t LARGE_BUCKET = 2048;
+
+// 小 bucket：低 12 bit 拆成兩個 6 bit，做兩趟 LSD radix sort（每趟只有 64 個桶）。
+// 實測 bucket 大小 32~2000 時，每個元素約 3 ns；std::sort 要 17~40 ns。
+static void radix_sort_low_bits(const Key* in, Key* out, Key* scratch, uint32_t n) {
+    uint32_t pos0[64] = {}, pos1[64] = {};
+    for (uint32_t i = 0; i < n; ++i) {
+        ++pos0[in[i] & 63];
+        ++pos1[(in[i] >> 6) & 63];
+    }
+    uint32_t sum0 = 0, sum1 = 0;
+    for (int d = 0; d < 64; ++d) {
+        const uint32_t c0 = pos0[d], c1 = pos1[d];
+        pos0[d] = sum0; sum0 += c0;
+        pos1[d] = sum1; sum1 += c1;
+    }
+    for (uint32_t i = 0; i < n; ++i) scratch[pos0[in[i] & 63]++] = in[i];             // 依 bit 0..5
+    for (uint32_t i = 0; i < n; ++i) out[pos1[(scratch[i] >> 6) & 63]++] = scratch[i];  // 依 bit 6..11
+}
+
 // 所有 phase 結束後，把每個 bucket 內部排好，結果寫到 tmp 再和 keys 交換。
-// 同一個 bucket 的 key 高 12 bit 都一樣，只差低 12 bit，所以：
-//   1. 數每個低 12 bit 的值出現幾次
-//   2. 依序把 (bucket << 12 | low) 寫出 count 次
-// 資料本身就是 key，沒有附帶 payload，所以可以直接「重新產生」排好的序列。
-// 很小的 bucket 用 std::sort 比較划算（掃 4096 個計數器反而比較慢）。
+// 同一個 bucket 的 key 高 12 bit 都一樣，只差低 12 bit。依 bucket 大小選做法：
+//   * 小 bucket（< LARGE_BUCKET）：radix_sort_low_bits
+//   * 大 bucket：counting sort
+//       1. 數每個低 12 bit 的值出現幾次
+//       2. 依序把 (bucket << 12 | low) 寫出 count 次
+//     資料本身就是 key，沒有附帶 payload，所以可以直接「重新產生」排好的序列。
+//     但每個 bucket 都要掃過 4096 個計數器，bucket 小的時候不划算。
 static void sort_inside_buckets(Workspace& ws) {
-    constexpr uint32_t SMALL_BUCKET = 512;
     constexpr uint32_t BURST = 8;   // 一次固定寫 8 個（編譯器會變成一個向量 store）
     std::vector<uint32_t>& cnt = ws.low_count;
     std::fill(cnt.begin(), cnt.end(), 0u);
@@ -517,9 +541,8 @@ static void sort_inside_buckets(Workspace& ws) {
         const Key* in = ws.keys.data() + ws.start[b];
         Key* out = ws.tmp.data() + ws.start[b];
 
-        if (n < SMALL_BUCKET) {
-            std::copy(in, in + n, out);
-            std::sort(out, out + n);
+        if (n < LARGE_BUCKET) {
+            radix_sort_low_bits(in, out, ws.scratch.data(), n);
             continue;
         }
         for (uint32_t i = 0; i < n; ++i) ++cnt[in[i] & LOW_MASK];
@@ -612,6 +635,7 @@ int main(int argc, char** argv) {
     ws.partner_hist.resize(NUM_BUCKETS);
     ws.start.resize(NUM_BUCKETS + 1);
     ws.low_count.resize(std::max(NUM_BUCKETS + 1, 1 << LOW_BITS));
+    ws.scratch.resize(LARGE_BUCKET);
 
     // ---- 讀檔：直接以 32-bit 整數讀入 float 的 bit pattern ----------------------
     {
