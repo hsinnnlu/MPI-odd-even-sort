@@ -145,6 +145,18 @@ static Layout make_layout(int rank, int size, int n) {
     return L;
 }
 
+// MPI-IO 的錯誤預設是「回傳錯誤碼」而不是中止程式（MPI_ERRORS_RETURN），
+// 不檢查的話，檔案打不開時程式會什麼都沒寫就正常結束。
+// 所以每個 MPI_File_* 呼叫都要檢查，失敗就印出原因並中止。
+static void check_io(int rc, const char* what, const char* path) {
+    if (rc == MPI_SUCCESS) return;
+    char reason[MPI_MAX_ERROR_STRING];
+    int len = 0;
+    MPI_Error_string(rc, reason, &len);
+    std::fprintf(stderr, "hw1: %s '%s' failed: %s\n", what, path, reason);
+    MPI_Abort(MPI_COMM_WORLD, 1);
+}
+
 // 和鄰居交換一個 key
 static Key exchange_one(Key mine, int partner) {
     Key theirs = 0;
@@ -596,9 +608,11 @@ int main(int argc, char** argv) {
     {
         TIMER(T_READ);
         MPI_File fh;
-        MPI_File_open(MPI_COMM_WORLD, input_file, MPI_MODE_RDONLY, MPI_INFO_NULL, &fh);
-        MPI_File_read_at_all(fh, static_cast<MPI_Offset>(L.global_start) * sizeof(float),
-                             ws.keys.data(), L.local_n, MPI_UINT32_T, MPI_STATUS_IGNORE);
+        check_io(MPI_File_open(MPI_COMM_WORLD, input_file, MPI_MODE_RDONLY, MPI_INFO_NULL, &fh),
+                 "open input", input_file);
+        check_io(MPI_File_read_at_all(fh, static_cast<MPI_Offset>(L.global_start) * sizeof(float),
+                                      ws.keys.data(), L.local_n, MPI_UINT32_T, MPI_STATUS_IGNORE),
+                 "read input", input_file);
         MPI_File_close(&fh);
     }
     for (Key& k : ws.keys) k = float_bits_to_key(k);
@@ -647,11 +661,15 @@ int main(int argc, char** argv) {
     {
         TIMER(T_WRITE);
         MPI_File fh;
-        MPI_File_open(MPI_COMM_WORLD, output_file, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
+        check_io(MPI_File_open(MPI_COMM_WORLD, output_file, MPI_MODE_CREATE | MPI_MODE_WRONLY,
+                               MPI_INFO_NULL, &fh),
+                 "open output", output_file);
         // 檔案原本若比較大，先截斷，避免殘留舊資料
-        MPI_File_set_size(fh, static_cast<MPI_Offset>(n) * sizeof(float));
-        MPI_File_write_at_all(fh, static_cast<MPI_Offset>(L.global_start) * sizeof(float),
-                              ws.keys.data(), L.local_n, MPI_UINT32_T, MPI_STATUS_IGNORE);
+        check_io(MPI_File_set_size(fh, static_cast<MPI_Offset>(n) * sizeof(float)),
+                 "truncate output", output_file);
+        check_io(MPI_File_write_at_all(fh, static_cast<MPI_Offset>(L.global_start) * sizeof(float),
+                                       ws.keys.data(), L.local_n, MPI_UINT32_T, MPI_STATUS_IGNORE),
+                 "write output", output_file);
         MPI_File_close(&fh);
     }
 

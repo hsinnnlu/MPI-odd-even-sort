@@ -17,7 +17,8 @@ PROCS=${PROCS:-"1 2 3 4 5 8"}
 SIZES=${SIZES:-"1 2 3 7 100 4097 9000 50000 300001 2000003"}
 MODES=${MODES:-"uniform wide dup sorted reverse zeros"}
 ROUNDS=${ROUNDS:-"1 2 25"}
-WORK=${WORK:-/tmp/${USER:-$(id -un)}-hw1-random}
+# 不能用 /tmp：srun 在 compute node 執行，看不到 login node 的 /tmp（見 run_public.sh）
+WORK=${WORK:-$PWD/test/work}
 mkdir -p "$WORK"
 
 if [ ! -x ./hw1 ] || [ ! -x test/ref ]; then echo "請先 make（需要 ./hw1 和 test/ref）"; exit 1; fi

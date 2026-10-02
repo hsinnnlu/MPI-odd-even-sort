@@ -13,7 +13,9 @@ set -u
 cd "$(dirname "$0")/.."
 
 CASES=${CASES:-/srv/nova/scratch/coursedata/pp2026/hw1}
-OUT_DIR=${OUT_DIR:-/tmp/${USER:-$(id -un)}-hw1-test}
+# 注意：不能用 /tmp。/tmp 是每台機器各自的硬碟，srun 會把程式送到 compute node 上執行，
+# 那裡看不到 login node 的 /tmp。所以預設放在 repo 裡（NFS，所有節點都看得到）。
+OUT_DIR=${OUT_DIR:-$PWD/test/out}
 LAUNCH=${LAUNCH:-srun}
 mkdir -p "$OUT_DIR"
 
