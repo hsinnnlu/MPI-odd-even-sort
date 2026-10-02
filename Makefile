@@ -5,10 +5,6 @@ CXXFLAGS = -O3
 hw1: hw1.cc hash.h
 	$(CXX) $(CXXFLAGS) -o $@ hw1.cc
 
-# 有計時輸出的版本（stderr 會印出 PROFILE ...），給報告用
-hw1_profile: hw1.cc hash.h
-	$(CXX) $(CXXFLAGS) -DHW1_PROFILE -o $@ hw1.cc
-
 # 單機參考答案
 test/ref: test/ref.cc hash.h
 	g++ -O2 -I. -o $@ test/ref.cc
@@ -17,9 +13,9 @@ test/ref: test/ref.cc hash.h
 test/mpi_ping: test/mpi_ping.cc
 	$(CXX) -O2 -o $@ test/mpi_ping.cc
 
-all: hw1 hw1_profile test/ref test/mpi_ping
+all: hw1 test/ref test/mpi_ping
 
 clean:
-	rm -f hw1 hw1_profile test/ref test/mpi_ping
+	rm -f hw1 test/ref test/mpi_ping
 
 .PHONY: all clean

@@ -44,23 +44,6 @@ using Key = uint32_t;
 // MPI tag：不同用途的訊息用不同 tag，避免互相配對錯誤
 enum Tag { TAG_EDGE = 1, TAG_HIST = 2, TAG_DATA = 3 };
 
-// -----------------------------------------------------------------------------
-// 可選的計時（編譯時加 -DHW1_PROFILE 開啟），給報告的 time profile 用
-// -----------------------------------------------------------------------------
-enum TimerId { T_READ, T_LOCAL_SORT, T_COMPARE_SPLIT, T_TERMINATION, T_HASH, T_WRITE, T_COUNT };
-#ifdef HW1_PROFILE
-static double g_time[T_COUNT] = {};
-struct ScopedTimer {
-    TimerId id;
-    double start;
-    explicit ScopedTimer(TimerId i) : id(i), start(MPI_Wtime()) {}
-    ~ScopedTimer() { g_time[id] += MPI_Wtime() - start; }
-};
-#define TIMER(id) ScopedTimer scoped_timer_(id)
-#else
-#define TIMER(id) ((void)0)
-#endif
-
 // =============================================================================
 // Key 編碼
 // =============================================================================
@@ -206,19 +189,14 @@ static void run_odd_even_phases(const Layout& L, CompareSplit&& compare_split) {
             const bool pair_with_right = ((phase + L.rank) % 2 == 0);
             const int partner = pair_with_right ? L.rank + 1 : L.rank - 1;
 
-            if (L.rank < L.active && partner >= 0 && partner < L.active) {
-                TIMER(T_COMPARE_SPLIT);
-                if (compare_split(partner)) changed = 1;
-            }
+            if (L.rank < L.active && partner >= 0 && partner < L.active && compare_split(partner))
+                changed = 1;
         }
 
         if (phase < L.active) continue;   // 還在理論界限內，先不檢查
 
         int any_changed = 0;
-        {
-            TIMER(T_TERMINATION);
-            MPI_Allreduce(&changed, &any_changed, 1, MPI_INT, MPI_LOR, MPI_COMM_WORLD);
-        }
+        MPI_Allreduce(&changed, &any_changed, 1, MPI_INT, MPI_LOR, MPI_COMM_WORLD);
         if (!any_changed) break;
     }
 }
@@ -575,9 +553,6 @@ VECTORIZE_CLONES static void hash_and_count(Workspace& ws, uint32_t global_start
 // =============================================================================
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
-#ifdef HW1_PROFILE
-    const double t_begin = MPI_Wtime();
-#endif
 
     int rank = 0, size = 1;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -606,7 +581,6 @@ int main(int argc, char** argv) {
 
     // ---- 讀檔：直接以 32-bit 整數讀入 float 的 bit pattern ----------------------
     {
-        TIMER(T_READ);
         MPI_File fh;
         check_io(MPI_File_open(MPI_COMM_WORLD, input_file, MPI_MODE_RDONLY, MPI_INFO_NULL, &fh),
                  "open input", input_file);
@@ -622,27 +596,17 @@ int main(int argc, char** argv) {
 
     for (int round = 0; round < rounds; ++round) {
         if (round == 0) {
-            {
-                TIMER(T_LOCAL_SORT);
-                radix_sort_32(ws.keys, ws.tmp);
-            }
+            radix_sort_32(ws.keys, ws.tmp);
             run_odd_even_phases(L, [&](int partner) { return compare_split_sorted(ws, rank, partner); });
         } else {
             // 上一輪結尾的 hash 已經算好 hist，這裡只要 scatter 一次
-            {
-                TIMER(T_LOCAL_SORT);
-                scatter_into_buckets(ws);
-            }
+            scatter_into_buckets(ws);
             run_odd_even_phases(L, [&](int partner) { return compare_split_buckets(ws, L, partner); });
-            {
-                TIMER(T_LOCAL_SORT);
-                sort_inside_buckets(ws);
-            }
+            sort_inside_buckets(ws);
         }
 
         // 這一輪全域已排好；除了最後一輪，都要 hash（hash round 從 1 開始）
         if (round + 1 < rounds) {
-            TIMER(T_HASH);
             if (keys_are_float) hash_and_count<true>(ws, L.global_start, round + 1);
             else                hash_and_count<false>(ws, L.global_start, round + 1);
             keys_are_float = false;
@@ -659,7 +623,6 @@ int main(int argc, char** argv) {
         }
     }
     {
-        TIMER(T_WRITE);
         MPI_File fh;
         check_io(MPI_File_open(MPI_COMM_WORLD, output_file, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                                MPI_INFO_NULL, &fh),
@@ -672,21 +635,6 @@ int main(int argc, char** argv) {
                  "write output", output_file);
         MPI_File_close(&fh);
     }
-
-#ifdef HW1_PROFILE
-    // 各項時間取所有 rank 的最大值（最慢的 rank 決定整體時間）
-    double local[T_COUNT + 1], worst[T_COUNT + 1];
-    for (int i = 0; i < T_COUNT; ++i) local[i] = g_time[i];
-    local[T_COUNT] = MPI_Wtime() - t_begin;
-    MPI_Reduce(local, worst, T_COUNT + 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-    if (rank == 0)
-        std::fprintf(stderr,
-                     "PROFILE ranks=%d active=%d N=%d rounds=%d | read=%.4f local_sort=%.4f "
-                     "compare_split=%.4f termination=%.4f hash=%.4f write=%.4f total=%.4f\n",
-                     size, L.active, n, rounds, worst[T_READ], worst[T_LOCAL_SORT],
-                     worst[T_COMPARE_SPLIT], worst[T_TERMINATION], worst[T_HASH], worst[T_WRITE],
-                     worst[T_COUNT]);
-#endif
 
     MPI_Finalize();
     return 0;
