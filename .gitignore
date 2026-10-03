@@ -7,3 +7,5 @@ test/out/
 test/work/
 test/mpi_ping
 test/build/
+test/exp/results/*.log
+test/exp/work_*/

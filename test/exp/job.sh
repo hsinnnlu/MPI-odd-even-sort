@@ -33,18 +33,39 @@ CSV=$RESULTS/${EXP_NAME}_${SLURM_JOB_ID}.csv
 LOG=$RESULTS/${EXP_NAME}_${SLURM_JOB_ID}.log
 
 read -r N _nodes _procs _part ROUNDS < <(python3 test/parse_case.py "$CASES/$CASE_ID.txt")
-WORK=/tmp/hw1exp_${SLURM_JOB_ID}
+# ---- 1. 暫存目錄 ----
+# 單節點：node-local 的 /tmp（作業規定的做法）。
+# 多節點：/tmp 是各節點自己的硬碟，第二台的 rank 寫不到第一台的輸出檔，
+#         所以改用 repo 裡的共用目錄（NFS）。報告中要把這組結果標成 NFS，
+#         不能和單節點 /tmp 的結果當成同一種設定比較。
+if [ "$NODES" -eq 1 ]; then
+    WORK=/tmp/hw1exp_${SLURM_JOB_ID}
+    STORAGE="node-local $WORK"
+    srun -N1 --ntasks-per-node=1 bash -c "mkdir -p $WORK && cp $CASES/$CASE_ID.in $WORK/in" || { echo "staging 失敗" >&2; exit 1; }
+    cleanup() { srun -N1 --ntasks-per-node=1 rm -rf "$WORK"; }
+else
+    WORK=$REPO/test/exp/work_${SLURM_JOB_ID}
+    STORAGE="shared NFS $WORK (multi-node)"
+    mkdir -p "$WORK" && cp "$CASES/$CASE_ID.in" "$WORK/in" || { echo "staging 失敗" >&2; exit 1; }
+    cleanup() { rm -rf "$WORK"; }
 
-# ---- 1. 每個節點都放一份輸入（2 節點的 job 兩台都要有） ----
-srun -N"$NODES" --ntasks-per-node=1 bash -c "mkdir -p $WORK && cp $CASES/$CASE_ID.in $WORK/in" || { echo "staging 失敗" >&2; exit 1; }
-cleanup() { srun -N"$NODES" --ntasks-per-node=1 rm -rf "$WORK"; }
+    # 跨節點 MPI：若有「每台節點 IP 都一樣」的網卡（例如 docker0），Open MPI 的 TCP 會連錯人
+    # （received unexpected process identifier）。找出這些網卡並排除，同 test/judge.sh。
+    if [ -z "${OMPI_MCA_btl_tcp_if_exclude:-}" ]; then
+        bad=$(srun -N"$NODES" --ntasks-per-node=1 -l ip -4 -o addr show 2>/dev/null | awk '
+            $3 != "lo" { split($5, a, "/"); seen[a[1]]++; name[a[1]] = $3 }
+            END { for (ip in seen) if (seen[ip] > 1) print name[ip] }' | sort -u | tr '\n' ',')
+        export OMPI_MCA_btl_tcp_if_exclude="lo${bad:+,${bad%,}}"
+    fi
+fi
 trap cleanup EXIT
 
 {
     echo "# job=$SLURM_JOB_ID partition=$PART nodes=$NODES nodelist=$SLURM_JOB_NODELIST"
     echo "# case=$CASE_ID N=$N rounds=$ROUNDS trials=$TRIALS versions=[$VERSIONS] procs=[$PROCS]"
     echo "# modules: $(module -t list 2>&1 | tr '\n' ' ')"
-    echo "# storage: input and output in node-local $WORK (deleted at job end)"
+    echo "# storage: input and output in $STORAGE (deleted at job end)"
+    echo "# OMPI_MCA_btl_tcp_if_exclude=${OMPI_MCA_btl_tcp_if_exclude:-（未設定）}"
 } > "$CSV"
 
 # ---- 2. 執行：每個 trial 裡把所有版本與 process 數輪流跑一遍，讓各設定遇到的負載接近 ----
