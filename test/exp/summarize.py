@@ -114,6 +114,13 @@ for c in cfgs:
                  "sendrecv_MB": round(m["MB"]), "comm_bw_MBps": round(m["bw"]) if m["bw"] == m["bw"] else "",
                  "wall_s": round(wmed, 3), "correct": ok, "trials": len(per_cfg[c]["total"])})
 
+missing = sorted(set(wall) - set(med), key=lambda c: (c[0], order.get(c[1], 9), part_order.get(c[2], 9), c[3], c[4]))
+if missing:
+    print("\n⚠ 以下設定有執行紀錄（WALL）但沒有任何計時資料（PROF）：程式沒有正常跑完，請看對應的 .log / slurm_*.txt")
+    for c in missing:
+        res = ", ".join(f"{w:.2f}s {s}" for w, s in wall[c])
+        print(f"  case{c[0]} {c[1]:<12}{c[2]:<7}N{c[3]} p{c[4]}: {res}")
+
 print("\n儲存位置：")
 for name, s in sorted(storage.items()):
     print(f"  {name}: {s}")
