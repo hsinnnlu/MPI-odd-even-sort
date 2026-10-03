@@ -6,6 +6,7 @@
 #   bash test/exp/submit_all.sh            # 全部送出
 #   TRIALS=3 bash test/exp/submit_all.sh   # 先少跑幾次試水溫
 #   ONLY="big mixed" bash test/exp/submit_all.sh
+#   LIMIT=5:00 bash test/exp/submit_all.sh   # 每個 job 的時間上限（預設 10:00），不能超過課程 QOS 的限制
 #   EXCLUSIVE=1 bash test/exp/submit_all.sh   # 整台節點獨占，避免別人的 job 在同一台搶記憶體頻寬（排隊可能較久）
 #   CASE_ID=08 ONLY="big little" bash test/exp/submit_all.sh   # 額外：用 8M 筆的測資再跑一次（不同問題大小）
 # 全部跑完後：python3 test/exp/summarize.py
@@ -58,16 +59,25 @@ echo "已編譯：final final_nocap v4 ori（$B/）"
 export REPO TRIALS=${TRIALS:-5} CASE_ID=${CASE_ID:-10}
 SUFFIX=$([ "$CASE_ID" = 10 ] || echo "_case$CASE_ID")
 ONLY=${ONLY:-"big little mixed big2n"}
-submit() {   # submit <名字> <sbatch 參數> <procs> <versions> <時間上限>
-    local name=$1 opts=$2 procs=$3 versions=$4 limit=$5
-    [[ " $ONLY " == *" $name "* ]] || return 0
+# 每個 job 的時間上限。課程的 QOS 有「單一 job 最長執行時間」的限制，
+# 超過的 job 會一直卡在 PD（QOSMaxWallDurationPerJobLimit）。
+# 查限制：sacctmgr -P show qos format=Name,MaxWall ；或 scontrol show partition big | grep MaxTime
+LIMIT=${LIMIT:-10:00}
+submit() {   # submit <名字> <sbatch 參數> <procs> <versions>
+    local name=$1 opts=$2 procs=$3 versions=$4
+    [[ " $ONLY " == *" ${name%%_*} "* ]] || return 0
     EXP_NAME=$name$SUFFIX PROCS=$procs VERSIONS=$versions \
-        sbatch --parsable -J "hw1exp-$name" $opts ${EXCLUSIVE:+--exclusive} -t "$limit" -o "test/exp/results/slurm_${name}_%j.txt" test/exp/job.sh \
-        | sed "s/^/送出 $name，job id = /"
+        sbatch --parsable -J "hw1exp-$name" $opts ${EXCLUSIVE:+--exclusive} -t "$LIMIT" -o "test/exp/results/slurm_${name}_%j.txt" test/exp/job.sh \
+        | sed "s/^/送出 $name（procs: $procs；版本: $versions），job id = /"
 }
-submit big    "-p big -N1 -n4"    "1 2 4" "final v4 ori"            "40:00"
-submit little "-p little -N1 -n4" "1 2 4" "final v4 ori"            "50:00"
-submit mixed  "-p mixed -N1 -n8"  "8 4 1" "final final_nocap v4"   "30:00"
-submit big2n  "-p big -N2 -n8"    "8"     "final final_nocap v4"    "20:00"
+# 拆成小 job，每個都能在 LIMIT 內跑完。最初版本（ori）很慢，每種 process 數各自一個 job。
+submit big           "-p big -N1 -n4"    "1 2 4" "final v4"
+submit little        "-p little -N1 -n4" "1 2 4" "final v4"
+for p in 1 2 4; do
+    submit big_ori_p$p    "-p big -N1 -n4"    "$p" "ori"
+    submit little_ori_p$p "-p little -N1 -n4" "$p" "ori"
+done
+submit mixed         "-p mixed -N1 -n8"  "8 4 1" "final final_nocap v4"
+submit big2n         "-p big -N2 -n8"    "8"     "final final_nocap v4"
 echo
 echo "用 squeue -u \$USER 查看進度；全部結束後執行：python3 test/exp/summarize.py"
