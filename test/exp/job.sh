@@ -33,6 +33,9 @@ CSV=$RESULTS/${EXP_NAME}_${SLURM_JOB_ID}.csv
 LOG=$RESULTS/${EXP_NAME}_${SLURM_JOB_ID}.log
 
 read -r N _nodes _procs _part ROUNDS < <(python3 test/parse_case.py "$CASES/$CASE_ID.txt")
+# 注意：job 內的每個 srun 都明確加上 -c 1（每個 process 1 顆 CPU）。
+# 不加的話，srun 會把 job 的 CPU 平均分給每個 task（例如 -n2 → 每個 2×4），
+# 超過 big/little 每節點 4 個 slot 的限制，被課程的 cli_filter 直接拒絕。
 # ---- 1. 暫存目錄 ----
 # 單節點：node-local 的 /tmp（作業規定的做法）。
 # 多節點：/tmp 是各節點自己的硬碟，第二台的 rank 寫不到第一台的輸出檔，
@@ -41,8 +44,8 @@ read -r N _nodes _procs _part ROUNDS < <(python3 test/parse_case.py "$CASES/$CAS
 if [ "$NODES" -eq 1 ]; then
     WORK=/tmp/hw1exp_${SLURM_JOB_ID}
     STORAGE="node-local $WORK"
-    srun -N1 --ntasks-per-node=1 bash -c "mkdir -p $WORK && cp $CASES/$CASE_ID.in $WORK/in" || { echo "staging 失敗" >&2; exit 1; }
-    cleanup() { srun -N1 --ntasks-per-node=1 rm -rf "$WORK"; }
+    srun -N1 --ntasks-per-node=1 -c 1 bash -c "mkdir -p $WORK && cp $CASES/$CASE_ID.in $WORK/in" || { echo "staging 失敗" >&2; exit 1; }
+    cleanup() { srun -N1 --ntasks-per-node=1 -c 1 rm -rf "$WORK"; }
 else
     WORK=$REPO/test/exp/work_${SLURM_JOB_ID}
     STORAGE="shared NFS $WORK (multi-node)"
@@ -52,7 +55,7 @@ else
     # 跨節點 MPI：若有「每台節點 IP 都一樣」的網卡（例如 docker0），Open MPI 的 TCP 會連錯人
     # （received unexpected process identifier）。找出這些網卡並排除，同 test/judge.sh。
     if [ -z "${OMPI_MCA_btl_tcp_if_exclude:-}" ]; then
-        bad=$(srun -N"$NODES" --ntasks-per-node=1 -l ip -4 -o addr show 2>/dev/null | awk '
+        bad=$(srun -N"$NODES" --ntasks-per-node=1 -c 1 -l ip -4 -o addr show 2>/dev/null | awk '
             $3 != "lo" { split($5, a, "/"); seen[a[1]]++; name[a[1]] = $3 }
             END { for (ip in seen) if (seen[ip] > 1) print name[ip] }' | sort -u | tr '\n' ',')
         export OMPI_MCA_btl_tcp_if_exclude="lo${bad:+,${bad%,}}"
@@ -76,12 +79,12 @@ for ((t = 1; t <= TRIALS; ++t)); do
             tag="$ver/$PART/N$NODES/p$p/t$t/c$CASE_ID"
             out=$WORK/out_$ver
             start=$(date +%s.%N)
-            EXP_TAG=$tag srun -N"$NODES" -n"$p" "$BIN/$ver" "$N" "$WORK/in" "$out" "$ROUNDS" \
+            EXP_TAG=$tag srun -N"$NODES" -n"$p" -c 1 "$BIN/$ver" "$N" "$WORK/in" "$out" "$ROUNDS" \
                 2> >(tee -a "$LOG" | grep '^PROF' >> "$CSV") > /dev/null
             rc=$?
             wall=$(python3 -c "print(f'{$(date +%s.%N) - $start:.4f}')")
             # 只有 rank 0 所在節點（第一台）有完整輸出；用 srun 在第一台上比對
-            if [ $rc -eq 0 ] && srun -N1 -n1 -w "$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -1)" \
+            if [ $rc -eq 0 ] && srun -N1 -n1 -c 1 -w "$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -1)" \
                     cmp -s "$out" "$CASES/$CASE_ID.out"; then ok=OK; else ok=WRONG; fi
             echo "WALL,$tag,$wall,$ok" >> "$CSV"
             echo "$tag  wall=${wall}s  $ok"
