@@ -63,7 +63,8 @@ trap cleanup EXIT
 {
     echo "# job=$SLURM_JOB_ID partition=$PART nodes=$NODES nodelist=$SLURM_JOB_NODELIST"
     echo "# case=$CASE_ID N=$N rounds=$ROUNDS trials=$TRIALS versions=[$VERSIONS] procs=[$PROCS]"
-    echo "# modules: $(module -t list 2>&1 | tr '\n' ' ')"
+    echo "# modules: ${LOADEDMODULES:-（未記錄）}"
+    echo "# mpicxx: $(mpicxx --version 2>/dev/null | head -1) / $(mpirun --version 2>/dev/null | head -1)"
     echo "# storage: input and output in $STORAGE (deleted at job end)"
     echo "# OMPI_MCA_btl_tcp_if_exclude=${OMPI_MCA_btl_tcp_if_exclude:-（未設定）}"
 } > "$CSV"
@@ -72,7 +73,7 @@ trap cleanup EXIT
 for ((t = 1; t <= TRIALS; ++t)); do
     for ver in $VERSIONS; do
         for p in $PROCS; do
-            tag="$ver/$PART/N$NODES/p$p/t$t"
+            tag="$ver/$PART/N$NODES/p$p/t$t/c$CASE_ID"
             out=$WORK/out_$ver
             start=$(date +%s.%N)
             EXP_TAG=$tag srun -N"$NODES" -n"$p" "$BIN/$ver" "$N" "$WORK/in" "$out" "$ROUNDS" \

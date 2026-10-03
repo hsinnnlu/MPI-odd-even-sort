@@ -8,14 +8,15 @@
 // 會被 include guard 擋掉，所以只有「呼叫」被替換。
 //
 // 分類（每個 rank 各自累計）：
-//   io    MPI_File_*（open、read、set_size、write、close）
+//   io    MPI_File_*（open、read、set_size、write、close），另外分開記錄
+//         io_read（read_at*）與 io_write（set_size + write_at*）；io 減去兩者 = open/close
 //   comm  MPI_Sendrecv（odd-even 的鄰居交換；含等待對方的時間）
 //   sync  Allreduce、Barrier、Bcast、Allgather、Exscan、Reduce（終止判斷與初始化的 collective）
 //   total MPI_Init 結束（先做一次 Barrier）到 MPI_Finalize 開始（先做一次 Barrier）
 //   compute = total - io - comm - sync（local sort、merge、hash、bucket 重組……）
 //
 // MPI_Finalize 時把每個 rank 的數字收集到 rank 0，印出 CSV（stderr）：
-//   PROF,tag,rank,host,cpu,total,io,comm,sync,compute,sendrecv_calls,sendrecv_MB
+//   PROF,tag,rank,host,cpu,total,io,comm,sync,compute,sendrecv_calls,sendrecv_MB,io_read,io_write
 // tag 來自環境變數 EXP_TAG（由實驗腳本設定，例如 final/big/N1/p4/t3）。
 // =============================================================================
 #pragma once
@@ -28,7 +29,7 @@
 #include <vector>
 
 namespace prof {
-inline double t_start = 0, t_io = 0, t_comm = 0, t_sync = 0;
+inline double t_start = 0, t_io = 0, t_comm = 0, t_sync = 0, t_read = 0, t_write = 0;
 inline long long sendrecv_calls = 0;
 inline double sendrecv_bytes = 0;
 inline bool finalized = false;
@@ -58,27 +59,29 @@ inline int prof_Finalize() {
     int rank = 0, size = 1;
     PMPI_Comm_rank(MPI_COMM_WORLD, &rank);
     PMPI_Comm_size(MPI_COMM_WORLD, &size);
-    double mine[7] = {total, prof::t_io, prof::t_comm, prof::t_sync,
+    constexpr int K = 9;
+    double mine[K] = {total, prof::t_io, prof::t_comm, prof::t_sync,
                       total - prof::t_io - prof::t_comm - prof::t_sync,
-                      static_cast<double>(prof::sendrecv_calls), prof::sendrecv_bytes / 1e6};
+                      static_cast<double>(prof::sendrecv_calls), prof::sendrecv_bytes / 1e6,
+                      prof::t_read, prof::t_write};
     char host[MPI_MAX_PROCESSOR_NAME] = {};
     int len = 0;
     PMPI_Get_processor_name(host, &len);
     const int cpu = sched_getcpu();
 
-    std::vector<double> all(rank == 0 ? 7 * size : 0);
+    std::vector<double> all(rank == 0 ? K * size : 0);
     std::vector<char> hosts(rank == 0 ? static_cast<size_t>(MPI_MAX_PROCESSOR_NAME) * size : 0);
     std::vector<int> cpus(rank == 0 ? size : 0);
-    PMPI_Gather(mine, 7, MPI_DOUBLE, all.data(), 7, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    PMPI_Gather(mine, K, MPI_DOUBLE, all.data(), K, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     PMPI_Gather(host, MPI_MAX_PROCESSOR_NAME, MPI_CHAR, hosts.data(), MPI_MAX_PROCESSOR_NAME, MPI_CHAR, 0, MPI_COMM_WORLD);
     PMPI_Gather(&cpu, 1, MPI_INT, cpus.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
     if (rank == 0) {
         const char* tag = std::getenv("EXP_TAG");
         for (int r = 0; r < size; ++r) {
-            const double* v = all.data() + 7 * r;
-            std::fprintf(stderr, "PROF,%s,%d,%s,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.0f,%.1f\n",
+            const double* v = all.data() + K * r;
+            std::fprintf(stderr, "PROF,%s,%d,%s,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.0f,%.1f,%.6f,%.6f\n",
                          tag ? tag : "untagged", r, hosts.data() + static_cast<size_t>(MPI_MAX_PROCESSOR_NAME) * r,
-                         cpus[r], v[0], v[1], v[2], v[3], v[4], v[5], v[6]);
+                         cpus[r], v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]);
         }
         std::fflush(stderr);
     }
@@ -90,18 +93,20 @@ inline int prof_File_open(MPI_Comm c, const char* f, int m, MPI_Info i, MPI_File
     prof::Scope s(prof::t_io); return PMPI_File_open(c, f, m, i, fh);
 }
 inline int prof_File_close(MPI_File* fh) { prof::Scope s(prof::t_io); return PMPI_File_close(fh); }
-inline int prof_File_set_size(MPI_File fh, MPI_Offset n) { prof::Scope s(prof::t_io); return PMPI_File_set_size(fh, n); }
+inline int prof_File_set_size(MPI_File fh, MPI_Offset n) {
+    prof::Scope s(prof::t_io), w(prof::t_write); return PMPI_File_set_size(fh, n);
+}
 inline int prof_File_read_at_all(MPI_File fh, MPI_Offset o, void* b, int n, MPI_Datatype t, MPI_Status* st) {
-    prof::Scope s(prof::t_io); return PMPI_File_read_at_all(fh, o, b, n, t, st);
+    prof::Scope s(prof::t_io), r(prof::t_read); return PMPI_File_read_at_all(fh, o, b, n, t, st);
 }
 inline int prof_File_read_at(MPI_File fh, MPI_Offset o, void* b, int n, MPI_Datatype t, MPI_Status* st) {
-    prof::Scope s(prof::t_io); return PMPI_File_read_at(fh, o, b, n, t, st);
+    prof::Scope s(prof::t_io), r(prof::t_read); return PMPI_File_read_at(fh, o, b, n, t, st);
 }
 inline int prof_File_write_at_all(MPI_File fh, MPI_Offset o, const void* b, int n, MPI_Datatype t, MPI_Status* st) {
-    prof::Scope s(prof::t_io); return PMPI_File_write_at_all(fh, o, b, n, t, st);
+    prof::Scope s(prof::t_io), w(prof::t_write); return PMPI_File_write_at_all(fh, o, b, n, t, st);
 }
 inline int prof_File_write_at(MPI_File fh, MPI_Offset o, const void* b, int n, MPI_Datatype t, MPI_Status* st) {
-    prof::Scope s(prof::t_io); return PMPI_File_write_at(fh, o, b, n, t, st);
+    prof::Scope s(prof::t_io), w(prof::t_write); return PMPI_File_write_at(fh, o, b, n, t, st);
 }
 
 // ---- 點對點通訊 -----------------------------------------------------------------
