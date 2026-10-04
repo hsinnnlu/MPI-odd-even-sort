@@ -13,15 +13,14 @@
 #
 # 版本：
 #   final        最終繳交的 hw1.cc
-#   final_nocap  最終版，但拿掉「只用第一台節點」與「最多 4 個 rank」（額外實驗用）
 #   ori          最初版本（std::sort + 整塊交換 + std::merge），test/exp/baseline_ori.cc
 #
 # 實驗（測資 10，N = 23,987,513，25 輪；每個設定 TRIALS 次）：
 #   big     -p big    -N1  procs 1 2 4   版本 final ori   ← strong scaling（同質）+ 前後比較
 #   little  -p little -N1  procs 1 2 4   版本 final ori   ← big vs little
-#   mixed   -p mixed  -N1  procs 8 4 1   版本 final final_nocap   ← 整台節點、異質核心（1 = mixed 自己的 speedup 基準）
+#   mixed   -p mixed  -N1  procs 8 4 1   版本 final   ← 整台節點、異質核心（1 = mixed 自己的 speedup 基準）
 #   bignfs  -p big    -N1  procs 1 2 4   版本 final   ← strong scaling 用：和 big2n 一樣放 NFS
-#   big2n   -p big    -N2  procs 8       版本 final final_nocap   ← big 8 個 process（每節點只有 4 個 big core，必須 2 節點）
+#   big2n   -p big    -N2  procs 8       版本 final   ← big 8（兩個節點的 process 都參與排序） 個 process（每節點只有 4 個 big core，必須 2 節點）
 # =============================================================================
 set -eu
 cd "$(dirname "$0")/../.."
@@ -42,17 +41,12 @@ mkdir -p "$B" test/exp/results
 WRAP="-include test/exp/prof_wrap.h"
 
 cp hw1.cc "$B/final.cc"
-sed -e 's/constexpr int MAX_ACTIVE_RANKS = 4;/constexpr int MAX_ACTIVE_RANKS = 0;/' \
-    -e 's/long long active = count_ranks_on_first_node(rank, size);/long long active = size;/' \
-    hw1.cc > "$B/final_nocap.cc"
-grep -q 'MAX_ACTIVE_RANKS = 0;' "$B/final_nocap.cc" && grep -q 'long long active = size;' "$B/final_nocap.cc" \
-    || { echo "產生 final_nocap 失敗：hw1.cc 的寫法和預期不同"; exit 1; }
 cp test/exp/baseline_ori.cc "$B/ori.cc"
 
-for v in final final_nocap ori; do
+for v in final ori; do
     mpicxx -O3 -I. $WRAP -o "$B/$v" "$B/$v.cc"
 done
-echo "已編譯：final final_nocap ori（$B/）"
+echo "已編譯：final ori（$B/）"
 
 # ---- 送出 job -------------------------------------------------------------------
 export REPO TRIALS=${TRIALS:-5} CASE_ID=${CASE_ID:-10}
@@ -76,8 +70,8 @@ for p in 1 2 4; do
     submit big_ori_p$p    "-p big -N1 -n4"    "$p" "ori"
     submit little_ori_p$p "-p little -N1 -n4" "$p" "ori"
 done
-submit mixed         "-p mixed -N1 -n8"  "8 4 1" "final final_nocap"
+submit mixed         "-p mixed -N1 -n8"  "8 4 1" "final"
 submit bignfs        "-p big -N1 -n4"    "1 2 4" "final" nfs
-submit big2n         "-p big -N2 -n8"    "8"     "final final_nocap"
+submit big2n         "-p big -N2 -n8"    "8"     "final"
 echo
 echo "用 squeue -u \$USER 查看進度；全部結束後執行：python3 test/exp/summarize.py"

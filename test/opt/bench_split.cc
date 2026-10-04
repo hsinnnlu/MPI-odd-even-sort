@@ -83,6 +83,7 @@ int main(int argc, char** argv) {
 
     // ---- 四種 compare-split ----
     long long exchanged = 0, skipped = 0;
+    std::vector<Key> merged;   // V0 用：兩塊完整合併的結果
     auto full_exchange = [&](int partner) {
         const int pn = L.count[partner];
         MPI_Sendrecv(ws.keys.data(), L.local_n, MPI_UINT32_T, partner, TAG_DATA,
@@ -91,9 +92,9 @@ int main(int argc, char** argv) {
     };
     auto v0 = [&](int partner) {             // 整塊交換 + std::merge 全部
         const int pn = full_exchange(partner), m = L.local_n;
-        ws.boundary.resize(static_cast<size_t>(m) + pn);
-        std::merge(ws.keys.begin(), ws.keys.end(), ws.recv.begin(), ws.recv.begin() + pn, ws.boundary.begin());
-        const Key* keep = rank < partner ? ws.boundary.data() : ws.boundary.data() + pn;
+        merged.resize(static_cast<size_t>(m) + pn);
+        std::merge(ws.keys.begin(), ws.keys.end(), ws.recv.begin(), ws.recv.begin() + pn, merged.begin());
+        const Key* keep = rank < partner ? merged.data() : merged.data() + pn;
         const bool changed = !std::equal(keep, keep + m, ws.keys.data());
         std::copy(keep, keep + m, ws.keys.data());
         ++exchanged;

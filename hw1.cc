@@ -3,28 +3,23 @@
 //
 // 整體流程（每個 rank 都執行同一份程式）：
 //
-//   1. 讀檔：rank r 讀取連續的一段資料（block distribution）。
+//   1. 讀檔：所有 rank 平均分配資料，rank r 讀取連續的一段（block distribution）。
 //   2. 把每個 float 轉成「可排序的 uint32 key」：
 //        無號整數的大小順序 = 原本浮點數的大小順序。
 //      之後所有排序、比較、交換都直接用整數 key 完成。
-//   3. Round 0（輸入是任意 float）：
+//   3. 每一輪：
 //        a. local LSD radix sort
+//             round 0：32-bit key，11 + 11 + 10 bit 三個 pass
+//             之後  ：hash 輸出只有 24 bit，12 + 12 bit 兩個 pass
 //        b. odd-even phases，每次 compare-split 只交換「可能需要移動」的元素
-//   4. Round 1 .. R-1（資料是上一輪的 hash 輸出，只是 24-bit 整數）：
-//        a. hash 的同一個迴圈裡順便統計 bucket 數量（bucket = key 的高 12 bit）
-//        b. 只做「一次」bucket 分配，bucket 內部先不排序
-//        c. odd-even phases：以 bucket 為單位做 compare-split。
-//           只需要 memcpy 整個 bucket，不需要逐元素比較的 merge。
-//        d. 所有 phase 結束後，才在每個 bucket 內用 counting sort 排好。
-//   5. 每輪結束（最後一輪除外）都做 hash，最後寫檔。
+//   4. 每輪結束（最後一輪除外）都做 hash，最後寫檔。
 //
 // 主要演算法優化：
-//   (A) 延遲排序（lazy local sort）：rounds 1..R-1 不先做完整 local sort，
-//       而是維持「依 bucket 分組」的狀態做 compare-split。compare-split 的結果
-//       （lower rank 拿到聯集裡最小的 m 個）和傳統作法完全相同，
-//       只是把 bucket 內的排序延到最後才做一次。
-//   (B) hash 和下一輪的 histogram 合併成一個迴圈，少讀一次整塊資料。
-//   (C) 用整數 key 取代 float：radix、比較、counting sort 都直接作用在整數上。
+//   (A) radix sort 取代 comparison sort；histogram 一次算好（round 0 在排序前一次讀完，
+//       之後的 round 在 hash 的同一個迴圈裡順便統計），每個 pass 只需要 scatter。
+//   (B) selective compare-split：先交換邊界值，已有序就跳過；
+//       否則只送出可能移動的元素，並且只 merge 出自己要留下的那一半。
+//   (C) 用整數 key 取代 float：radix、比較都直接作用在整數上。
 //   (D) 終止條件：理論上 p 個 phase 內一定排好，所以前 p 個 phase
 //       完全不做 Allreduce，之後才每個 cycle 檢查一次。
 // =============================================================================
@@ -42,7 +37,7 @@
 using Key = uint32_t;
 
 // MPI tag：不同用途的訊息用不同 tag，避免互相配對錯誤
-enum Tag { TAG_EDGE = 1, TAG_HIST = 2, TAG_DATA = 3 };
+enum Tag { TAG_EDGE = 1, TAG_DATA = 2 };
 
 // =============================================================================
 // Key 編碼
@@ -77,53 +72,19 @@ static inline float hash_key_to_float(Key key) {
     return static_cast<float>(static_cast<int32_t>(key) - HASH_OFFSET);
 }
 
-// ---- 24-bit key 拆成 bucket（高 12 bit）和 bucket 內的值（低 12 bit） -------
-constexpr int KEY_BITS = 24;
-constexpr int HIGH_BITS = 12;                    // bucket 編號用的 bit 數
-constexpr int LOW_BITS = KEY_BITS - HIGH_BITS;   // bucket 內部的 bit 數
-constexpr int NUM_BUCKETS = 1 << HIGH_BITS;      // 4096 個 bucket
-constexpr Key LOW_MASK = (1u << LOW_BITS) - 1;
-
-static inline int bucket_of(Key key) { return static_cast<int>(key >> LOW_BITS); }
+// ---- 24-bit key 的 radix sort：12 + 12 bit 兩個 pass ----------------------
+constexpr int DIGIT_BITS_24 = 12;
+constexpr int RADIX_24 = 1 << DIGIT_BITS_24;     // 每個 pass 4096 個桶
+constexpr Key DIGIT_MASK_24 = RADIX_24 - 1;
 
 // =============================================================================
 // 資料分配
 // =============================================================================
 
 // 資料太少時，讓很多 rank 一起做反而只會增加通訊次數。
-// 所以每個參與排序的 rank 至少要分到這麼多元素。
+// 所以每個參與排序的 rank 至少要分到這麼多元素；資料夠多時（N >= 4096 × size）
+// 所有 rank（包含其他節點上的 rank）都會分到資料、參與排序。
 constexpr long long MIN_ELEMENTS_PER_RANK = 4096;
-
-// 最多幾個 rank 參與排序（0 = 不限制）。
-// odd-even sort 每一輪搬移的資料量和 rank 數成正比，而同一台機器上的
-// rank 共用記憶體頻寬，所以 rank 不是越多越快。
-// 在課程機器上量測（test/sweep_active.sh，每組 5 次取中位數）：
-// 上限 1/2/4/8 中，4 在 big、little、mixed 都是最快或接近最快。
-constexpr int MAX_ACTIVE_RANKS = 4;
-
-// 計算「從 rank 0 開始、連續和 rank 0 在同一台節點上」的 rank 有幾個。
-//
-// 原因：odd-even sort 的資料只能一個鄰居一個鄰居地傳，hash 之後資料是隨機的，
-// 每一輪大約有一半的資料要穿過兩台節點之間的網路，而網路比共享記憶體慢很多。
-// 所以只讓第一台節點上的 rank 參與排序，其他節點的 rank 不分配資料
-// （仍然參與 MPI-IO 和終止判斷，這兩者規則允許使用 collective）。
-// 只取「連續」的 rank，才能保證參與排序的 rank 彼此都是相鄰的。
-static int count_ranks_on_first_node(int rank, int size) {
-    char my_host[MPI_MAX_PROCESSOR_NAME] = {};
-    char root_host[MPI_MAX_PROCESSOR_NAME] = {};
-    int len = 0;
-    MPI_Get_processor_name(my_host, &len);
-    if (rank == 0) std::memcpy(root_host, my_host, sizeof(root_host));
-    MPI_Bcast(root_host, MPI_MAX_PROCESSOR_NAME, MPI_CHAR, 0, MPI_COMM_WORLD);
-
-    const int same_node = std::strcmp(my_host, root_host) == 0 ? 1 : 0;
-    std::vector<int> all_same(size);
-    MPI_Allgather(&same_node, 1, MPI_INT, all_same.data(), 1, MPI_INT, MPI_COMM_WORLD);
-
-    int count = 0;
-    while (count < size && all_same[count]) ++count;
-    return count;
-}
 
 struct Layout {
     int rank = 0;
@@ -140,11 +101,9 @@ static Layout make_layout(int rank, int size, int n) {
     L.rank = rank;
     L.size = size;
 
-    // 參與排序的 rank 數 = 下面三個限制中最小的一個（至少 1 個）
-    long long active = count_ranks_on_first_node(rank, size);                      // 只用第一台節點
-    active = std::min(active, (n + MIN_ELEMENTS_PER_RANK - 1) / MIN_ELEMENTS_PER_RANK);  // 資料太少就少用幾個
-    if (MAX_ACTIVE_RANKS > 0) active = std::min<long long>(active, MAX_ACTIVE_RANKS);
-    L.active = static_cast<int>(std::max(1LL, active));
+    // 參與排序的 rank 數 = min(size, ceil(n / MIN_ELEMENTS_PER_RANK))，至少 1 個
+    const long long by_size = (n + MIN_ELEMENTS_PER_RANK - 1) / MIN_ELEMENTS_PER_RANK;
+    L.active = static_cast<int>(std::max(1LL, std::min<long long>(size, by_size)));
 
     // 前 rem 個 rank 多拿一個，其餘拿 base 個；rank >= active 拿 0 個
     const int base = n / L.active;
@@ -187,19 +146,14 @@ static Key exchange_one(Key mine, int partner) {
 // 所有 rank 共用的工作空間（整個程式只配置一次，不在迴圈內 allocate）
 // =============================================================================
 struct Workspace {
-    std::vector<Key> keys;            // 本 rank 的資料
-    std::vector<Key> tmp;             // 和 keys 一樣大，用來做 out-of-place 的重排
-    std::vector<Key> recv;            // 接收鄰居資料
-    std::vector<Key> boundary;        // 邊界 bucket 的聯集（bucket 模式用）
-    std::vector<uint32_t> hist;       // hist[b]   = 本 rank 在 bucket b 的元素數
-    std::vector<uint32_t> start;      // start[b]  = bucket b 在 keys 中的起點（共 NUM_BUCKETS+1 個）
-    std::vector<uint32_t> partner_hist;
-    std::vector<uint32_t> low_count;  // bucket 內 counting sort 用（也借給 compare-split 當暫存）
-    std::vector<Key> scratch;         // 小 bucket 的 radix sort 暫存（大小 LARGE_BUCKET 就夠）
+    std::vector<Key> keys;        // 本 rank 的資料
+    std::vector<Key> tmp;         // 和 keys 一樣大，用來做 out-of-place 的重排
+    std::vector<Key> recv;        // 接收鄰居資料
+    std::vector<uint32_t> hist;   // 24-bit radix sort 兩個 pass 的 histogram（hash 時順便算好）
 };
 
 // =============================================================================
-// Odd-even phase 的主迴圈（round 0 和 bucket 模式共用）
+// Odd-even phase 的主迴圈（每一輪都一樣）
 //
 // compare_split(partner) 負責和 partner 做一次 compare-split，
 // 有資料移動就回傳 true。
@@ -237,10 +191,10 @@ static void run_odd_even_phases(const Layout& L, CompareSplit&& compare_split) {
 }
 
 // =============================================================================
-// Round 0：任意 32-bit key
+// Local sort：LSD radix sort
 // =============================================================================
 
-// LSD radix sort，32 bit 拆成 11 + 11 + 10 bit 三個 pass。
+// Round 0：任意 32-bit key。，32 bit 拆成 11 + 11 + 10 bit 三個 pass。
 // 一次讀取就算出三個 pass 的 histogram，之後每個 pass 只需要 scatter。
 static void radix_sort_32(std::vector<Key>& keys, std::vector<Key>& tmp) {
     const size_t n = keys.size();
@@ -270,6 +224,22 @@ static void radix_sort_32(std::vector<Key>& keys, std::vector<Key>& tmp) {
         for (Key k : keys) tmp[pos[(k >> SHIFT[p]) & MASK[p]]++] = k;
         keys.swap(tmp);   // 每個 pass 結束後，結果都放回 keys
     }
+}
+
+// Round 1 之後：hash 輸出的 24-bit key，12 + 12 bit 兩個 pass。
+// histogram 已經在 hash_and_count 裡算好：hist[0..4095] 是低 12 bit，hist[4096..8191] 是高 12 bit。
+static void radix_sort_24(Workspace& ws) {
+    if (ws.keys.size() <= 1) return;
+    uint32_t* pos_low = ws.hist.data();
+    uint32_t* pos_high = ws.hist.data() + RADIX_24;
+    uint32_t sum_low = 0, sum_high = 0;
+    for (int d = 0; d < RADIX_24; ++d) {
+        const uint32_t c_low = pos_low[d], c_high = pos_high[d];
+        pos_low[d] = sum_low;   sum_low += c_low;
+        pos_high[d] = sum_high; sum_high += c_high;
+    }
+    for (Key k : ws.keys) ws.tmp[pos_low[k & DIGIT_MASK_24]++] = k;                    // 依低 12 bit
+    for (Key k : ws.tmp)  ws.keys[pos_high[(k >> DIGIT_BITS_24) & DIGIT_MASK_24]++] = k;  // 依高 12 bit
 }
 
 // 合併兩個已排序陣列 a、b，輸出最小的 count 個到 out。
@@ -348,229 +318,7 @@ static bool compare_split_sorted(Workspace& ws, int rank, int partner) {
 }
 
 // =============================================================================
-// Rounds 1..R-1：bucket 模式
-//
-// 狀態：keys 依 bucket 編號（key 的高 12 bit）由小到大排列，
-//       同一個 bucket 內部的順序「不重要」。
-//       hist[b] / start[b] 記錄每個 bucket 的大小與位置。
-// =============================================================================
-
-// 由 hist 算出每個 bucket 的起點
-static void compute_bucket_start(Workspace& ws) {
-    uint32_t sum = 0;
-    for (int b = 0; b < NUM_BUCKETS; ++b) {
-        ws.start[b] = sum;
-        sum += ws.hist[b];
-    }
-    ws.start[NUM_BUCKETS] = sum;
-}
-
-// 把 keys 依 bucket 分組（只做一次 scatter）。hist 必須已經算好。
-static void scatter_into_buckets(Workspace& ws) {
-    compute_bucket_start(ws);
-    std::vector<uint32_t> pos(ws.start.begin(), ws.start.end() - 1);   // 每個 bucket 的寫入位置
-    for (Key k : ws.keys) ws.tmp[pos[bucket_of(k)]++] = k;
-    ws.keys.swap(ws.tmp);
-}
-
-// 本 rank 的最小值 / 最大值：只需要掃描第一個 / 最後一個非空的 bucket
-static Key block_min(const Workspace& ws) {
-    int b = 0;
-    while (ws.hist[b] == 0) ++b;
-    return *std::min_element(ws.keys.begin() + ws.start[b], ws.keys.begin() + ws.start[b + 1]);
-}
-static Key block_max(const Workspace& ws) {
-    int b = NUM_BUCKETS - 1;
-    while (ws.hist[b] == 0) --b;
-    return *std::max_element(ws.keys.begin() + ws.start[b], ws.keys.begin() + ws.start[b + 1]);
-}
-
-// 兩個「bucket 分組」block 之間的 compare-split。
-//
-// 目標和傳統 compare-split 一樣：lower 留下聯集中最小的 n_lower 個。
-// 做法：
-//   1. 交換 histogram 後，兩邊都能算出「分界 bucket」s：
-//        bucket < s 的元素全部屬於 lower，bucket > s 的全部屬於 upper，
-//        只有 bucket s 需要依照實際值再切一刀。
-//   2. lower 把 bucket >= s 的元素送給 upper；upper 把 bucket <= s 的元素送給 lower。
-//      因為 keys 依 bucket 排好，這兩段在記憶體中都是連續的。
-//   3. bucket s 的聯集很小，用 nth_element 找出最小的 take 個給 lower。
-//   4. 重新組合：每個 bucket 只要把「自己的」和「收到的」兩段 memcpy 接起來。
-//      不需要逐元素比較的 merge。
-static bool compare_split_buckets(Workspace& ws, const Layout& L, int partner) {
-    const bool is_lower = L.rank < partner;
-
-    // ---- Step 1：邊界檢查 ---------------------------------------------------
-    const Key my_edge = is_lower ? block_max(ws) : block_min(ws);
-    const Key partner_edge = exchange_one(my_edge, partner);
-    const Key lower_max = is_lower ? my_edge : partner_edge;
-    const Key upper_min = is_lower ? partner_edge : my_edge;
-    if (lower_max <= upper_min) return false;
-
-    // ---- Step 2：交換 histogram（4096 個整數，和資料量相比很小） --------------
-    MPI_Sendrecv(ws.hist.data(), NUM_BUCKETS, MPI_UINT32_T, partner, TAG_HIST,
-                 ws.partner_hist.data(), NUM_BUCKETS, MPI_UINT32_T, partner, TAG_HIST,
-                 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    const uint32_t* hist_lower = is_lower ? ws.hist.data() : ws.partner_hist.data();
-    const uint32_t* hist_upper = is_lower ? ws.partner_hist.data() : ws.hist.data();
-    const uint32_t n_lower = static_cast<uint32_t>(L.count[std::min(L.rank, partner)]);
-
-    // ---- Step 3：找分界 bucket s ---------------------------------------------
-    // below = 兩邊在 bucket < s 的元素總數（全部歸 lower）
-    // lower 還要從 bucket s 的聯集中拿 take 個最小的
-    // 兩個 rank 用同樣的 histogram 計算，所以會得到同樣的 s 和 take
-    int s = 0;
-    uint32_t below = 0;
-    while (below + hist_lower[s] + hist_upper[s] < n_lower) {
-        below += hist_lower[s] + hist_upper[s];
-        ++s;
-    }
-    const uint32_t take = n_lower - below;   // 1 <= take <= bucket s 的聯集大小
-
-    // ---- Step 4：交換資料 -----------------------------------------------------
-    //   lower 送出自己 bucket s..4095（keys 的尾段），收到對方 bucket 0..s
-    //   upper 送出自己 bucket 0..s   （keys 的頭段），收到對方 bucket s..4095
-    // 因為 keys 依 bucket 排列，送出的部分在記憶體中是連續的一段。
-    const int recv_first = is_lower ? 0 : s;                  // 收到的 bucket 範圍
-    const int recv_last = is_lower ? s : NUM_BUCKETS - 1;     // [recv_first, recv_last]
-    const uint32_t send_begin = is_lower ? ws.start[s] : 0;
-    const uint32_t send_end = is_lower ? ws.start[NUM_BUCKETS] : ws.start[s + 1];
-
-    // 收到的資料也依 bucket 排列；用對方的 histogram 算出
-    // recv_pos[b] = 對方 bucket b 在 recv 中的起點，總和就是要收的數量
-    std::vector<uint32_t>& recv_pos = ws.low_count;   // 借用暫存陣列（大小 >= NUM_BUCKETS）
-    uint32_t recv_n = 0;
-    for (int b = recv_first; b <= recv_last; ++b) {
-        recv_pos[b] = recv_n;
-        recv_n += ws.partner_hist[b];
-    }
-
-    MPI_Sendrecv(ws.keys.data() + send_begin, static_cast<int>(send_end - send_begin), MPI_UINT32_T,
-                 partner, TAG_DATA,
-                 ws.recv.data(), static_cast<int>(recv_n), MPI_UINT32_T,
-                 partner, TAG_DATA, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-    auto recv_bucket = [&](int b) { return ws.recv.data() + recv_pos[b]; };
-    auto my_bucket = [&](int b) { return ws.keys.data() + ws.start[b]; };
-
-    // ---- Step 5：切分界 bucket s ----------------------------------------------
-    // 把兩邊的 bucket s 接成一個陣列，nth_element 之後前 take 個就是最小的 take 個。
-    // 兩邊的聯集是同一個 multiset，而值相同的 key 本來就無法區分，
-    // 所以兩個 rank 各自切出來的結果一定互補。
-    ws.boundary.clear();
-    ws.boundary.insert(ws.boundary.end(), my_bucket(s), my_bucket(s) + ws.hist[s]);
-    ws.boundary.insert(ws.boundary.end(), recv_bucket(s), recv_bucket(s) + ws.partner_hist[s]);
-    if (take < ws.boundary.size())
-        std::nth_element(ws.boundary.begin(), ws.boundary.begin() + take, ws.boundary.end());
-
-    // ---- Step 6：重新組合成新的 bucket 排列（寫到 tmp） ------------------------
-    Key* out = ws.tmp.data();
-    auto append = [&](const Key* src, uint32_t count) {
-        std::memcpy(out, src, count * sizeof(Key));
-        out += count;
-    };
-
-    if (is_lower) {
-        // bucket < s：自己的 + 收到的；bucket s：聯集中最小的 take 個；bucket > s：清空
-        for (int b = 0; b < s; ++b) {
-            append(my_bucket(b), ws.hist[b]);
-            append(recv_bucket(b), ws.partner_hist[b]);
-            ws.hist[b] += ws.partner_hist[b];
-        }
-        append(ws.boundary.data(), take);
-        ws.hist[s] = take;
-        for (int b = s + 1; b < NUM_BUCKETS; ++b) ws.hist[b] = 0;
-    } else {
-        // bucket < s：清空；bucket s：聯集中剩下的；bucket > s：收到的 + 自己的
-        for (int b = 0; b < s; ++b) ws.hist[b] = 0;
-        const uint32_t rest = static_cast<uint32_t>(ws.boundary.size()) - take;
-        append(ws.boundary.data() + take, rest);
-        // 這裡 hist[b]（b > s）還是舊值，剛好就是自己 bucket b 的大小；複製完才更新
-        for (int b = s + 1; b < NUM_BUCKETS; ++b) {
-            append(recv_bucket(b), ws.partner_hist[b]);
-            append(my_bucket(b), ws.hist[b]);
-        }
-        ws.hist[s] = rest;
-        for (int b = s + 1; b < NUM_BUCKETS; ++b) ws.hist[b] += ws.partner_hist[b];
-    }
-
-    ws.keys.swap(ws.tmp);
-    compute_bucket_start(ws);
-    return true;
-}
-
-// bucket 內排序的分界：小於這個大小用 radix_sort_low_bits，否則用 counting sort。
-// 2048 是實測的交叉點（每個 bucket 2000 筆時兩者都約 3 ns/元素）。
-constexpr uint32_t LARGE_BUCKET = 2048;
-
-// 小 bucket：低 12 bit 拆成兩個 6 bit，做兩趟 LSD radix sort（每趟只有 64 個桶）。
-// 實測 bucket 大小 32~2000 時，每個元素約 3 ns；std::sort 要 17~40 ns。
-static void radix_sort_low_bits(const Key* in, Key* out, Key* scratch, uint32_t n) {
-    uint32_t pos0[64] = {}, pos1[64] = {};
-    for (uint32_t i = 0; i < n; ++i) {
-        ++pos0[in[i] & 63];
-        ++pos1[(in[i] >> 6) & 63];
-    }
-    uint32_t sum0 = 0, sum1 = 0;
-    for (int d = 0; d < 64; ++d) {
-        const uint32_t c0 = pos0[d], c1 = pos1[d];
-        pos0[d] = sum0; sum0 += c0;
-        pos1[d] = sum1; sum1 += c1;
-    }
-    for (uint32_t i = 0; i < n; ++i) scratch[pos0[in[i] & 63]++] = in[i];             // 依 bit 0..5
-    for (uint32_t i = 0; i < n; ++i) out[pos1[(scratch[i] >> 6) & 63]++] = scratch[i];  // 依 bit 6..11
-}
-
-// 所有 phase 結束後，把每個 bucket 內部排好，結果寫到 tmp 再和 keys 交換。
-// 同一個 bucket 的 key 高 12 bit 都一樣，只差低 12 bit。依 bucket 大小選做法：
-//   * 小 bucket（< LARGE_BUCKET）：radix_sort_low_bits
-//   * 大 bucket：counting sort
-//       1. 數每個低 12 bit 的值出現幾次
-//       2. 依序把 (bucket << 12 | low) 寫出 count 次
-//     資料本身就是 key，沒有附帶 payload，所以可以直接「重新產生」排好的序列。
-//     但每個 bucket 都要掃過 4096 個計數器，bucket 小的時候不划算。
-static void sort_inside_buckets(Workspace& ws) {
-    constexpr uint32_t BURST = 8;   // 一次固定寫 8 個（編譯器會變成一個向量 store）
-    std::vector<uint32_t>& cnt = ws.low_count;
-    std::fill(cnt.begin(), cnt.end(), 0u);
-
-    Key* const out_end = ws.tmp.data() + ws.tmp.size();
-
-    for (int b = 0; b < NUM_BUCKETS; ++b) {
-        const uint32_t n = ws.hist[b];
-        const Key* in = ws.keys.data() + ws.start[b];
-        Key* out = ws.tmp.data() + ws.start[b];
-
-        if (n < LARGE_BUCKET) {
-            radix_sort_low_bits(in, out, ws.scratch.data(), n);
-            continue;
-        }
-        for (uint32_t i = 0; i < n; ++i) ++cnt[in[i] & LOW_MASK];
-
-        const Key high = static_cast<Key>(b) << LOW_BITS;
-        for (Key low = 0; low <= LOW_MASK; ++low) {
-            const uint32_t c = cnt[low];
-            const Key value = high | low;
-            cnt[low] = 0;   // 順便歸零，給下一個 bucket 用
-
-            if (out + BURST <= out_end) {
-                // 不管 c 是多少，都先寫 8 個，再把指標往前移 c 格。
-                // 多寫的部分會被下一個值覆蓋（out 只會往後走），
-                // 這樣就不會因為 c 大小不一而發生 branch misprediction。
-                for (uint32_t i = 0; i < BURST; ++i) out[i] = value;
-                for (uint32_t i = BURST; i < c; ++i) out[i] = value;   // c > 8 時才會執行
-            } else {
-                // 快到整個陣列尾端：不能多寫，老實地寫 c 個
-                for (uint32_t i = 0; i < c; ++i) out[i] = value;
-            }
-            out += c;
-        }
-    }
-    ws.keys.swap(ws.tmp);
-}
-
-// =============================================================================
-// Hash（同時統計下一輪需要的 bucket histogram）
+// Hash（同時統計下一輪 radix sort 需要的 histogram）
 // =============================================================================
 //
 // 分成小段處理：每段先做 hash（這個迴圈沒有相依性，編譯器可以向量化），
@@ -601,7 +349,10 @@ VECTORIZE_CLONES static void hash_and_count(Workspace& ws, uint32_t global_start
             const float hashed = hw1_hash(value, global_start + static_cast<uint32_t>(i), hash_round);
             keys[i] = hash_output_to_key(hashed);
         }
-        for (size_t i = begin; i < end; ++i) ++ws.hist[bucket_of(keys[i])];
+        for (size_t i = begin; i < end; ++i) {
+            ++ws.hist[keys[i] & DIGIT_MASK_24];
+            ++ws.hist[RADIX_24 + ((keys[i] >> DIGIT_BITS_24) & DIGIT_MASK_24)];
+        }
     }
 }
 
@@ -631,11 +382,7 @@ int main(int argc, char** argv) {
     ws.keys.resize(L.local_n);
     ws.tmp.resize(L.local_n);
     ws.recv.resize(std::max(L.max_count, 1));
-    ws.hist.resize(NUM_BUCKETS);
-    ws.partner_hist.resize(NUM_BUCKETS);
-    ws.start.resize(NUM_BUCKETS + 1);
-    ws.low_count.resize(std::max(NUM_BUCKETS + 1, 1 << LOW_BITS));
-    ws.scratch.resize(LARGE_BUCKET);
+    ws.hist.resize(2 * RADIX_24);
 
     // ---- 讀檔：直接以 32-bit 整數讀入 float 的 bit pattern ----------------------
     {
@@ -653,15 +400,9 @@ int main(int argc, char** argv) {
     bool keys_are_float = true;   // round 0 是 32-bit float key，之後都是 24-bit hash key
 
     for (int round = 0; round < rounds; ++round) {
-        if (round == 0) {
-            radix_sort_32(ws.keys, ws.tmp);
-            run_odd_even_phases(L, [&](int partner) { return compare_split_sorted(ws, rank, partner); });
-        } else {
-            // 上一輪結尾的 hash 已經算好 hist，這裡只要 scatter 一次
-            scatter_into_buckets(ws);
-            run_odd_even_phases(L, [&](int partner) { return compare_split_buckets(ws, L, partner); });
-            sort_inside_buckets(ws);
-        }
+        if (keys_are_float) radix_sort_32(ws.keys, ws.tmp);
+        else                radix_sort_24(ws);   // histogram 已在上一輪結尾的 hash 中算好
+        run_odd_even_phases(L, [&](int partner) { return compare_split_sorted(ws, rank, partner); });
 
         // 這一輪全域已排好；除了最後一輪，都要 hash（hash round 從 1 開始）
         if (round + 1 < rounds) {

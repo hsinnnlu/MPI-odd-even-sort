@@ -13,7 +13,7 @@
   fig_breakdown_big.png      final、big、1/2/4 process 的時間組成堆疊圖（I/O / Comm / Sync / Compute）
   fig_scaling.png            strong scaling：總時間與 speedup（含 compute-only speedup、理想線）
   fig_big_vs_little.png      big 與 little 的總時間比較
-  fig_mixed.png              mixed 1/4/8：final（只用 rank 0 節點上的 process）vs final_nocap（全部 process）
+  fig_mixed.png              mixed 1/4/8 的時間組成（big + little 混合節點）
   fig_ori_vs_final.png       最初版本 vs final（對數座標，標出加速倍數）
   fig_opt_radix.png          Optimization 1：local sort 各做法時間
   fig_opt_split.png          Optimization 2：compare-split 四種做法的時間與傳送量
@@ -216,35 +216,30 @@ else:
     skip("big vs little", "缺少 local 的 big 或 little 結果")
 
 # ---- 4. mixed ----
-mx = {v: dict(series("local", v, "mixed", 1, [1, 4, 8])) for v in ("final", "final_nocap")}
-ps = sorted(set(mx["final"]) | set(mx["final_nocap"]))
-if ps:
+mx = series("local", "final", "mixed", 1, [1, 4, 8])
+if mx:
     fig, ax = plt.subplots(figsize=(6.4, 4))
-    w = 0.38
-    for off, v, lab, col in ((-w / 2, "final", "final (active ranks on rank 0's node, max 4)", C_COMP),
-                             (w / 2, "final_nocap", "final_nocap (all processes sort)", "#C44E52")):
-        xs = [i for i, p in enumerate(ps) if p in mx[v]]
-        ys = [mx[v][ps[i]]["total_s"] for i in xs]
-        ax.bar([x + off for x in xs], ys, w, color=col, label=lab)
-        for x, y in zip(xs, ys):
-            ax.text(x + off, y, f"{y:.2f}", ha="center", va="bottom", fontsize=8)
-    ax.set_xticks(range(len(ps)), [str(p) for p in ps])
-    ax.set_xlabel("number of MPI processes (mixed partition)")
-    ax.set_ylabel("total time (s)")
-    ax.set_title(f"Mixed big/little node (case {args.case})")
-    ax.legend(fontsize=7)
+    xs = [str(p) for p, _ in mx]
+    bottom = [0.0] * len(mx)
+    for key, lab, col in (("compute_s", "Computation", C_COMP), ("comm_s", "Communication", C_COMM),
+                          ("sync_s", "Synchronization", C_SYNC), ("io_s", "I/O", C_IO)):
+        vals = [r[key] for _, r in mx]
+        ax.bar(xs, vals, bottom=bottom, color=col, label=lab, width=0.6)
+        bottom = [b + v for b, v in zip(bottom, vals)]
+    for i, (_, r) in enumerate(mx):
+        ax.text(i, bottom[i], f"{r['total_s']:.2f} s", ha="center", va="bottom", fontsize=9)
+    ax.set_xlabel("number of MPI processes (mixed partition: 4 big + 4 little cores)")
+    ax.set_ylabel("time (s)")
+    ax.set_title(f"Mixed big/little node, final version (case {args.case})")
+    ax.set_ylim(0, max(bottom) * 1.15)
+    ax.legend(fontsize=8)
     ax.grid(axis="y", alpha=0.3)
     save(fig, "fig_mixed.png")
-    rows = []
-    for p in ps:
-        for v in ("final", "final_nocap"):
-            r = mx[v].get(p)
-            if r:
-                rows.append([p, v.replace("_", "\\_"), int(r["busy_ranks"]), f3(r["total_s"]), f3(r["io_s"]),
-                             f3(r["comm_s"]), f3(r["sync_s"]), f3(r["compute_s"]), f"{r['compute_imbalance']:.2f}"])
-    table(f"Mixed partition (case {args.case}, node-local /tmp, seconds). Imbalance = max / min compute time "
-          "among active ranks.", "tab:mixed",
-          ["Processes", "Version", "Active", "Total", "I/O", "Comm.", "Sync.", "Compute", "Imbalance"], rows)
+    table(f"Mixed partition, final version (case {args.case}, node-local /tmp, seconds). "
+          "Imbalance = max / min compute time among ranks.", "tab:mixed",
+          ["Processes", "Total", "I/O", "Comm.", "Sync.", "Compute", "Imbalance", "Speedup"],
+          [[p, f3(r["total_s"]), f3(r["io_s"]), f3(r["comm_s"]), f3(r["sync_s"]), f3(r["compute_s"]),
+            f"{r['compute_imbalance']:.2f}", f"{r['speedup']:.2f}"] for p, r in mx])
 else:
     skip("mixed", "沒有 local 的 mixed 結果")
 
@@ -281,7 +276,7 @@ else:
 # ---- 6. 通訊量與有效頻寬 ----
 rows = []
 for (st, v, part, nodes, p), r in sorted(R.items(), key=lambda kv: (kv[0][1], kv[0][2], kv[0][3], kv[0][4])):
-    if p > 1 and v in ("ori", "final", "final_nocap") and r.get("sendrecv_MB"):
+    if p > 1 and v in ("ori", "final") and r.get("sendrecv_MB"):
         bw = r.get("comm_bw_MBps")
         rows.append([v.replace("_", "\\_"), part, nodes, p, "/tmp" if st == "local" else "NFS",
                      f"{r['sendrecv_MB']:.0f}", f3(r["comm_s"]), f"{bw:.0f}" if isinstance(bw, float) else "--"])
