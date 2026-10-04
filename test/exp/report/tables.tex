@@ -1,0 +1,200 @@
+% 由 test/exp/make_report.py 自動產生；需要 \usepackage{booktabs}
+
+\begin{table}[htbp]
+\centering
+\caption{Time profile of the final version on big cores (case 10, median of 5 trials, seconds).}
+\label{tab:breakdown}
+\begin{tabular}{lrrrrrr}
+\toprule
+Processes & Total & I/O (read / write) & Comm. & Sync. & Compute & Speedup \\
+\midrule
+1 & 2.799 & 0.015 (0.005 / 0.009) & 0.000 & 0.000 & 2.783 & 1.00 \\
+2 & 2.188 & 0.014 (0.004 / 0.007) & 0.155 & 0.003 & 2.015 & 1.28 \\
+4 & 2.111 & 0.039 (0.013 / 0.018) & 0.458 & 0.076 & 1.538 & 1.33 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Strong scaling of the final version on big cores (case 10; all runs on shared NFS). Speedup is relative to 1 process; compute-only speedup excludes I/O, communication and synchronization.}
+\label{tab:scaling}
+\begin{tabular}{lrrrrrrrr}
+\toprule
+Processes & Nodes & Active ranks & Storage & Total (s) & I/O (s) & Compute (s) & Speedup & Compute speedup \\
+\midrule
+1 & 1 & 1 & NFS & 3.632 & 0.856 & 2.773 & 1.00 & 1.00 \\
+2 & 1 & 2 & NFS & 3.061 & 0.891 & 2.010 & 1.19 & 1.38 \\
+4 & 1 & 4 & NFS & 3.019 & 0.915 & 1.556 & 1.20 & 1.78 \\
+8 & 2 & 8 & NFS & 5.966 & 2.868 & 1.184 & 0.61 & 2.34 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Big versus little cores (final version, case 10, node-local /tmp, seconds).}
+\label{tab:big-little}
+\begin{tabular}{lrrrrrr}
+\toprule
+Processes & Big total & Big compute & Little total & Little compute & Little / big (total) & Little / big (compute) \\
+\midrule
+1 & 2.799 & 2.783 & 3.190 & 3.176 & 1.14 & 1.14 \\
+2 & 2.188 & 2.015 & 2.627 & 2.455 & 1.20 & 1.22 \\
+4 & 2.111 & 1.538 & 2.650 & 1.948 & 1.26 & 1.27 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Mixed partition, final version (case 10, node-local /tmp, seconds). Imbalance = max / min compute time among ranks.}
+\label{tab:mixed}
+\begin{tabular}{lrrrrrrr}
+\toprule
+Processes & Total & I/O & Comm. & Sync. & Compute & Imbalance & Speedup \\
+\midrule
+1 & 2.796 & 0.013 & 0.000 & 0.000 & 2.782 & 1.00 & 1.00 \\
+4 & 2.546 & 0.040 & 0.584 & 0.174 & 1.748 & 1.64 & 1.10 \\
+8 & 2.393 & 0.040 & 0.835 & 0.084 & 1.431 & 1.78 & 1.17 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Original versus final version (case 10, node-local /tmp, seconds).}
+\label{tab:ori-final}
+\begin{tabular}{lrrrrrr}
+\toprule
+Partition & Processes & Original total & Original compute & Final total & Final compute & Speedup \\
+\midrule
+big & 1 & 43.096 & 43.081 & 2.799 & 2.783 & 15.4$\times$ \\
+big & 2 & 25.791 & 25.376 & 2.188 & 2.015 & 11.8$\times$ \\
+big & 4 & 15.679 & 14.380 & 2.111 & 1.538 & 7.4$\times$ \\
+little & 1 & 61.489 & 61.470 & 3.190 & 3.176 & 19.3$\times$ \\
+little & 2 & 36.154 & 35.669 & 2.627 & 2.455 & 13.8$\times$ \\
+little & 4 & 21.265 & 19.712 & 2.650 & 1.948 & 8.0$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Communication volume (sum of MPI\_Sendrecv payload over all ranks) and effective bandwidth (case 10). Communication time includes waiting for the partner, so the bandwidth is a lower bound.}
+\label{tab:comm}
+\begin{tabular}{lllrlrrr}
+\toprule
+Version & Partition & Nodes & Processes & Storage & Sent (MB) & Comm. (s) & Eff. BW (MB/s) \\
+\midrule
+final & big & 1 & 2 & /tmp & 2399 & 0.155 & 7715 \\
+final & big & 1 & 2 & NFS & 2399 & 0.159 & 7559 \\
+final & big & 1 & 4 & /tmp & 5997 & 0.458 & 3769 \\
+final & big & 1 & 4 & NFS & 5997 & 0.455 & 3761 \\
+final & big & 2 & 8 & NFS & 11394 & 1.845 & 779 \\
+final & little & 1 & 2 & /tmp & 2399 & 0.159 & 7555 \\
+final & little & 1 & 4 & /tmp & 5997 & 0.555 & 3208 \\
+final & mixed & 1 & 4 & /tmp & 5997 & 0.584 & 3158 \\
+final & mixed & 1 & 8 & /tmp & 12294 & 0.835 & 2081 \\
+final & mixed & 2 & 16 & NFS & 23539 & 2.051 & 729 \\
+final\_nocomp & big & 2 & 8 & NFS & 12294 & 9.648 & 159 \\
+final\_nocomp & mixed & 2 & 16 & NFS & 24438 & 8.306 & 184 \\
+ori & big & 1 & 2 & /tmp & 4798 & 0.384 & 6249 \\
+ori & big & 1 & 4 & /tmp & 10794 & 0.513 & 5196 \\
+ori & little & 1 & 2 & /tmp & 4798 & 0.447 & 5480 \\
+ori & little & 1 & 4 & /tmp & 10794 & 0.603 & 4374 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Effect of compressing the data exchanged between ranks on different nodes (two nodes, case 10, shared NFS, median of 5 trials). Sent volume is the sum over all ranks; only the pair that crosses the node boundary is compressed.}
+\label{tab:compression}
+\begin{tabular}{lrlrrrrr}
+\toprule
+Partition & Processes & Compression & Total (s) & Comm. (s) & Sync. (s) & Sent (MB) & Speedup \\
+\midrule
+big & 8 & off & 13.700 & 9.648 & 0.169 & 12294 & 1.00 \\
+big & 8 & on & 5.966 & 1.845 & 0.069 & 11394 & 2.30 \\
+mixed & 16 & off & 11.829 & 8.306 & 0.272 & 24438 & 1.00 \\
+mixed & 16 & on & 5.371 & 2.051 & 0.147 & 23539 & 2.20 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Local sort of the original input values in round 0 (case 10, 1 process on a big core, median).}
+\label{tab:opt-radix}
+\begin{tabular}{lrr}
+\toprule
+Method & Time (ms) & Speedup vs.\ first row \\
+\midrule
+std::sort (float) & 1682.1 & 1.0$\times$ \\
+radix 8+8+8+8 & 132.6 & 12.7$\times$ \\
+radix 16+16 & 130.7 & 12.9$\times$ \\
+radix 11+11+10 per-pass hist & 121.0 & 13.9$\times$ \\
+radix 11+11+10 fused (final) & 111.9 & 15.0$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Hash plus local sort in the rounds after hashing (24-bit keys, case 10, 1 process on a big core, median). The final version computes the radix histogram inside the hash loop.}
+\label{tab:opt-radix24}
+\begin{tabular}{lrr}
+\toprule
+Method & Time (ms) & Speedup vs.\ first row \\
+\midrule
+hash + std::sort & 1344.5 & 1.0$\times$ \\
+hash + radix 8+8+8 & 92.2 & 14.6$\times$ \\
+hash + radix 12+12 (separate hist) & 120.6 & 11.1$\times$ \\
+hash+hist fused + radix 12+12 (final) & 108.6 & 12.4$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Compare-split variants: time of the complete odd-even phase loop, total MPI\_Sendrecv payload, and number of exchanges performed or skipped by the boundary check (median of 5 trials).}
+\label{tab:opt-split}
+\begin{tabular}{lrlrrrrl}
+\toprule
+Input & Processes & Variant & Time (ms) & Sent (MB) & Exchanges & Skipped & Result \\
+\midrule
+case 10 & 2 & V0 full + full merge & 96.3 & 191.9 & 2 & 0 & OK \\
+case 10 & 2 & V1 full + partial merge & 54.7 & 191.9 & 2 & 0 & OK \\
+case 10 & 2 & V2 + boundary check & 26.3 & 96.0 & 1 & 1 & OK \\
+case 10 & 2 & V3 selective (final) & 26.3 & 96.0 & 1 & 1 & OK \\
+case 10 & 4 & V0 full + full merge & 132.1 & 431.8 & 9 & 0 & OK \\
+case 10 & 4 & V1 full + partial merge & 86.5 & 431.8 & 9 & 0 & OK \\
+case 10 & 4 & V2 + boundary check & 44.3 & 239.9 & 5 & 4 & OK \\
+case 10 & 4 & V3 selective (final) & 44.4 & 239.9 & 5 & 4 & OK \\
+nearly sorted & 2 & V0 full + full merge & 37.3 & 191.9 & 2 & 0 & OK \\
+nearly sorted & 2 & V1 full + partial merge & 54.9 & 191.9 & 2 & 0 & OK \\
+nearly sorted & 2 & V2 + boundary check & 26.1 & 96.0 & 1 & 1 & OK \\
+nearly sorted & 2 & V3 selective (final) & 20.3 & 0.2 & 1 & 1 & OK \\
+nearly sorted & 4 & V0 full + full merge & 52.6 & 287.9 & 6 & 0 & OK \\
+nearly sorted & 4 & V1 full + partial merge & 57.3 & 287.9 & 6 & 0 & OK \\
+nearly sorted & 4 & V2 + boundary check & 28.1 & 143.9 & 3 & 3 & OK \\
+nearly sorted & 4 & V3 selective (final) & 20.5 & 0.6 & 3 & 3 & OK \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Effect of limiting active ranks for small inputs (4 processes on one big node, 25 rounds, median).}
+\label{tab:opt-active}
+\begin{tabular}{lrrrrr}
+\toprule
+N & Active ranks & Final (ms) & All ranks (ms) & Reduction & Same output \\
+\midrule
+100 & 1 & 0.64 & 0.72 & 11.1\% & yes \\
+1,000 & 1 & 0.64 & 0.82 & 22.0\% & yes \\
+10,000 & 3 & 1.39 & 1.31 & -6.1\% & yes \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,49 @@
+rank,mpi_call,category,count,total_ms,mean_us,bytes
+0,MPI_Allreduce,Synchronization / other MPI,75,1562.716,20836.22,1200
+0,MPI_Sendrecv,Communication,225,426.721,1896.54,3598127400
+0,MPI_Init,Synchronization / other MPI,1,69.403,69402.8,0
+0,MPI_Finalize,Synchronization / other MPI,1,43.513,43513.4,0
+0,MPI_File_write_at_all,I/O,1,24.844,24843.95,0
+0,MPI_File_read_at_all,I/O,1,14.985,14985.22,0
+0,MPI_File_open,I/O,2,0.96,480.02,0
+0,MPI_File_close,I/O,2,0.156,77.97,0
+0,MPI_File_set_size,I/O,1,0.031,31.42,0
+0,MPI_Barrier,Synchronization / other MPI,2,0.029,14.62,0
+0,MPI_Exscan,Synchronization / other MPI,25,0.024,0.97,300
+0,MPI_Reduce,Synchronization / other MPI,7,0.019,2.75,56
+1,MPI_Sendrecv,Communication,375,671.624,1791.0,5397191100
+1,MPI_Init,Synchronization / other MPI,1,59.507,59507.37,0
+1,MPI_Finalize,Synchronization / other MPI,1,43.448,43447.67,0
+1,MPI_File_close,I/O,2,20.065,10032.46,0
+1,MPI_Allreduce,Synchronization / other MPI,75,19.594,261.25,1200
+1,MPI_File_read_at_all,I/O,1,10.489,10488.7,0
+1,MPI_File_write_at_all,I/O,1,9.424,9423.89,0
+1,MPI_File_open,I/O,2,0.894,446.89,0
+1,MPI_Exscan,Synchronization / other MPI,25,0.558,22.33,200
+1,MPI_Barrier,Synchronization / other MPI,2,0.108,54.17,0
+1,MPI_File_set_size,I/O,1,0.031,31.39,0
+1,MPI_Reduce,Synchronization / other MPI,7,0.008,1.19,56
+2,MPI_Sendrecv,Communication,300,771.527,2571.76,3598127400
+2,MPI_Init,Synchronization / other MPI,1,59.763,59763.14,0
+2,MPI_Finalize,Synchronization / other MPI,1,43.449,43449.03,0
+2,MPI_Allreduce,Synchronization / other MPI,75,39.386,525.15,1200
+2,MPI_File_write_at_all,I/O,1,15.402,15402.24,0
+2,MPI_File_read_at_all,I/O,1,13.009,13008.56,0
+2,MPI_File_close,I/O,2,11.571,5785.61,0
+2,MPI_File_open,I/O,2,0.743,371.75,0
+2,MPI_Exscan,Synchronization / other MPI,25,0.568,22.71,100
+2,MPI_File_set_size,I/O,1,0.031,31.48,0
+2,MPI_Barrier,Synchronization / other MPI,2,0.014,7.01,0
+2,MPI_Reduce,Synchronization / other MPI,7,0.006,0.79,56
+3,MPI_Allreduce,Synchronization / other MPI,75,1541.951,20559.35,1200
+3,MPI_Sendrecv,Communication,150,426.477,2843.18,1799063700
+3,MPI_Init,Synchronization / other MPI,1,59.676,59675.54,0
+3,MPI_Finalize,Synchronization / other MPI,1,43.449,43448.98,0
+3,MPI_File_write_at_all,I/O,1,17.32,17320.5,0
+3,MPI_File_read_at_all,I/O,1,14.448,14447.57,0
+3,MPI_File_close,I/O,2,8.206,4103.18,0
+3,MPI_File_open,I/O,2,0.842,421.06,0
+3,MPI_Exscan,Synchronization / other MPI,25,0.1,4.0,0
+3,MPI_File_set_size,I/O,1,0.031,31.47,0
+3,MPI_Barrier,Synchronization / other MPI,2,0.02,10.1,0
+3,MPI_Reduce,Synchronization / other MPI,7,0.008,1.14,56

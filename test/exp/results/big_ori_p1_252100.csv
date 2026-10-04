@@ -1,0 +1,16 @@
+# job=252100 partition=big nodes=1 nodelist=nova-c03
+# case=10 N=23987513 rounds=25 trials=5 versions=[ori] procs=[1]
+# modules: compiler/gcc/13:mpi/openmpi/5.0.10
+# mpicxx: g++-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 / mpirun (Open MPI) 5.0.10
+# storage: input and output in node-local /tmp/hw1exp_252100 (deleted at job end)
+# OMPI_MCA_btl_tcp_if_exclude=（未設定）
+PROF,ori/big/N1/p1/t1/c10,0,nova-c03,0,43.165253,0.019130,0.000000,0.000026,43.146097,0,0.0,0.005392,0.012873
+WALL,ori/big/N1/p1/t1/c10,43.5006,OK
+PROF,ori/big/N1/p1/t2/c10,0,nova-c03,0,43.095972,0.015317,0.000000,0.000028,43.080628,0,0.0,0.005546,0.008944
+WALL,ori/big/N1/p1/t2/c10,43.4317,OK
+PROF,ori/big/N1/p1/t3/c10,0,nova-c03,0,43.113368,0.015296,0.000000,0.000030,43.098042,0,0.0,0.005799,0.008599
+WALL,ori/big/N1/p1/t3/c10,43.4532,OK
+PROF,ori/big/N1/p1/t4/c10,0,nova-c03,0,43.036665,0.015677,0.000000,0.000028,43.020960,0,0.0,0.006001,0.008757
+WALL,ori/big/N1/p1/t4/c10,43.3748,OK
+PROF,ori/big/N1/p1/t5/c10,0,nova-c03,0,43.010922,0.015195,0.000000,0.000028,42.995699,0,0.0,0.005804,0.008547
+WALL,ori/big/N1/p1/t5/c10,43.3410,OK
