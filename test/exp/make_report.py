@@ -16,7 +16,8 @@
   fig_mixed.png              mixed 1/4/8 的時間組成（big + little 混合節點）
   fig_ori_vs_final.png       最初版本 vs final（對數座標，標出加速倍數）
   fig_compression.png        2 節點：跨節點壓縮開 / 關（final vs final_nocomp）的時間組成與傳送量
-  fig_opt_radix.png          Optimization 1：local sort 各做法時間
+  fig_opt_radix.png          Optimization 1：round 0 的 local sort 各做法時間
+  fig_opt_radix24.png        Optimization 1：hash 之後（24-bit key）的 hash + local sort 各做法時間
   fig_opt_split.png          Optimization 2：compare-split 四種做法的時間與傳送量
   fig_opt_active.png         Optimization 3：小 N 時每 rank 至少 4096 筆的效果
   tables.tex                 以上全部的 LaTeX 表格（booktabs；\\usepackage{booktabs}）
@@ -342,30 +343,39 @@ if opt_path:
     sections = re.split(r"^===== \[(\d)\].*$", text, flags=re.M)
     sec = {sections[i]: sections[i + 1] for i in range(1, len(sections) - 1, 2)}
 
-    # [1] radix：每一行「名稱 ... 數字 ms」，取行中第一個浮點數當中位數時間
-    radix = []
-    for line in sec.get("1", "").splitlines():
-        m = re.match(r"^\s*(\S.*?)\s{2,}([\d.]+)", line)
-        if m and not line.lstrip().startswith(("#", "input", "variant", "method")):
-            radix.append((m.group(1).strip(), float(m.group(2))))
-    if radix:
-        fig, ax = plt.subplots(figsize=(7, 3.6))
-        names = [n for n, _ in radix][::-1]
-        vals = [v for _, v in radix][::-1]
-        ax.barh(names, vals, color=[C_COMP if "fused" in n.lower() else "#8C8C8C" for n in names])
+    # [1] radix（round 0，float key）與 [4] radix（round 1 之後，含 hash 的 24-bit key）：
+    #     每一行「名稱 ... 數字 ms」，取行中第一個浮點數當中位數時間
+    def radix_section(key, fname, label, title, caption):
+        rows = []
+        for line in sec.get(key, "").splitlines():
+            m = re.match(r"^\s*(\S.*?)\s{2,}([\d.]+)", line)
+            if m and not line.lstrip().startswith(("#", "input", "variant", "method", "N=")):
+                rows.append((m.group(1).strip(), float(m.group(2))))
+        if not rows:
+            skip(label, f"{opt_path} 的 [{key}] 區段解析不到資料")
+            return
+        fig, ax = plt.subplots(figsize=(7.5, 3.6))
+        names = [n for n, _ in rows][::-1]
+        vals = [v for _, v in rows][::-1]
+        ax.barh(names, vals, color=[C_COMP if "final" in n.lower() else "#8C8C8C" for n in names])
         for i, v in enumerate(vals):
             ax.text(v, i, f" {v:.1f} ms", va="center", fontsize=8)
         ax.set_xscale("log")
         ax.set_xlabel("time (ms, log scale, median)")
-        ax.set_title("Optimization 1: local sort of one rank's block (1 process, big core)")
+        ax.set_title(title, fontsize=10)
         ax.set_xlim(right=max(vals) * 4)
-        save(fig, "fig_opt_radix.png")
-        base = radix[0][1]
-        table("Local sort methods (case 10 values, 1 process on a big core, median).", "tab:opt-radix",
-              ["Method", "Time (ms)", "Speedup vs.\\ first row"],
-              [[n.replace("_", "\\_").replace("+", "+"), f"{v:.1f}", f"{base / v:.1f}$\\times$"] for n, v in radix])
-    else:
-        skip("radix", f"{opt_path} 的 [1] 區段解析不到資料")
+        save(fig, fname)
+        base = rows[0][1]
+        table(caption, label, ["Method", "Time (ms)", "Speedup vs.\\ first row"],
+              [[n.replace("_", "\\_"), f"{v:.1f}", f"{base / v:.1f}$\\times$"] for n, v in rows])
+
+    radix_section("1", "fig_opt_radix.png", "tab:opt-radix",
+                  "Optimization 1 (round 0): local sort of the input floats (1 process, big core)",
+                  "Local sort of the original input values in round 0 (case 10, 1 process on a big core, median).")
+    radix_section("4", "fig_opt_radix24.png", "tab:opt-radix24",
+                  "Optimization 1 (rounds 1-24): hash + local sort of 24-bit keys (1 process, big core)",
+                  "Hash plus local sort in the rounds after hashing (24-bit keys, case 10, 1 process on a big core, "
+                  "median). The final version computes the radix histogram inside the hash loop.")
 
     # [2] compare-split：區塊以「input=... ranks=... 」開頭，接著四列 variant
     split_rows = []

@@ -12,7 +12,8 @@
 #   mkdir -p test/opt/results && sbatch test/opt/run_opt.sh
 #   結果：test/opt/results/opt_<job id>.txt
 #
-#   [1] Radix sort：std::sort、8+8+8+8、16+16、11+11+10（分開算 histogram / 一次算好）
+#   [1] Radix sort（round 0）：std::sort、8+8+8+8、16+16、11+11+10（分開算 histogram / 一次算好）
+#   [4] Radix sort（round 1 之後，含 hash）：std::sort、8+8+8、12+12（另外算 / 在 hash 裡順便算 histogram）
 #   [2] Compare-split：V0 整塊+全部 merge、V1 整塊+部分 merge、V2 +邊界檢查、V3 繳交版（只送可能移動的）
 #       輸入：課程測資 10（隨機）與 gen:nearly（幾乎排好），2 與 4 個 process
 #   [3] 每個 rank 至少 4096 筆：final vs 拿掉這條規則的 final_nomin，小 N、4 個 process
@@ -80,5 +81,8 @@ for n in 100 1000 10000; do
     active=$(( (n + 4095) / 4096 )); [ $active -gt 4 ] && active=4
     python3 -c "print(f'{$n:<8} {\"$active vs 4\":<8} {${med[final]}*1000:14.2f} {${med[final_nomin]}*1000:14.2f} {\"$same\":>8}')"
 done
+echo
+echo "===== [4] Local sort，round 1 之後（hash 輸出的 24-bit key，含 hash 時間；1 process，big core）====="
+srun -N1 -n1 -c1 $B/bench_radix $WORK/in10 $N10 $TRIALS hash
 } > "$OUT" 2>&1
 echo "結果：$OUT"
