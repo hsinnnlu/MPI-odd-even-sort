@@ -20,7 +20,9 @@
 //   (B) selective compare-split：先交換邊界值，已有序就跳過；
 //       否則只送出可能移動的元素，並且只 merge 出自己要留下的那一半。
 //   (C) 用整數 key 取代 float：radix、比較都直接作用在整數上。
-//   (D) 終止條件：理論上 p 個 phase 內一定排好，所以前 p 個 phase
+//   (D) 跨節點壓縮：相鄰兩個 rank 在不同節點時，送出的已排序資料改送
+//       「和前一個數的差值」並用變長編碼（varint），網路傳輸量約剩 1/4～1/2。
+//   (E) 終止條件：理論上 p 個 phase 內一定排好，所以前 p 個 phase
 //       完全不做 Allreduce，之後才每個 cycle 檢查一次。
 // =============================================================================
 #include <mpi.h>
@@ -94,7 +96,33 @@ struct Layout {
     int local_n = 0;          // = count[rank]
     int global_start = 0;     // 本 rank 第一個元素在全域排序結果中的 index
     int max_count = 0;        // 所有 rank 中最大的 count（決定接收 buffer 大小）
+    std::vector<int> node;    // node[r] = rank r 所在節點的編號（同一台節點的 rank 編號相同）
 };
+
+// 查出每個 rank 在哪一台節點：交換主機名稱，名稱相同就是同一台。
+// 只在初始化時做一次（規定允許初始化使用 collective）。
+static std::vector<int> find_nodes(int size) {
+    char name[MPI_MAX_PROCESSOR_NAME] = {};
+    int len = 0;
+    MPI_Get_processor_name(name, &len);
+    std::vector<char> all(static_cast<size_t>(size) * MPI_MAX_PROCESSOR_NAME);
+    MPI_Allgather(name, MPI_MAX_PROCESSOR_NAME, MPI_CHAR, all.data(), MPI_MAX_PROCESSOR_NAME, MPI_CHAR,
+                  MPI_COMM_WORLD);
+
+    // 節點編號 = 第一個和自己同名的 rank 的編號
+    std::vector<int> node(size);
+    for (int r = 0; r < size; ++r) {
+        node[r] = r;
+        for (int q = 0; q < r; ++q) {
+            if (std::strcmp(&all[static_cast<size_t>(q) * MPI_MAX_PROCESSOR_NAME],
+                            &all[static_cast<size_t>(r) * MPI_MAX_PROCESSOR_NAME]) == 0) {
+                node[r] = node[q];
+                break;
+            }
+        }
+    }
+    return node;
+}
 
 static Layout make_layout(int rank, int size, int n) {
     Layout L;
@@ -118,6 +146,8 @@ static Layout make_layout(int rank, int size, int n) {
     // （等同作業說明中的 MPI_Exscan；每個 rank 的元素數全程不變，所以只算一次）
     L.global_start = 0;
     for (int r = 0; r < rank; ++r) L.global_start += L.count[r];
+
+    L.node = find_nodes(size);
     return L;
 }
 
@@ -150,6 +180,8 @@ struct Workspace {
     std::vector<Key> tmp;         // 和 keys 一樣大，用來做 out-of-place 的重排
     std::vector<Key> recv;        // 接收鄰居資料
     std::vector<uint32_t> hist;   // 24-bit radix sort 兩個 pass 的 histogram（hash 時順便算好）
+    std::vector<uint8_t> send_bytes;  // 跨節點壓縮用（只有鄰居在別台節點的 rank 才配置）
+    std::vector<uint8_t> recv_bytes;
 };
 
 // =============================================================================
@@ -272,10 +304,79 @@ static void merge_largest(const Key* a, int na, const Key* b, int nb, Key* out, 
     if (k >= 0 && j >= 0) { const int c = std::min(k + 1, j + 1); std::memcpy(out + k + 1 - c, b + j + 1 - c, c * sizeof(Key)); k -= c; }
 }
 
+// =============================================================================
+// 跨節點壓縮：已排序的 key 改送「差值」，並用 varint 編碼
+//
+// 例：8000000, 8000007, 8000019 → 8000000, 7, 12
+// varint：每個 byte 放 7 bit，最高位元 = 1 表示後面還有 byte。
+//   差值 < 128 → 1 byte，< 16384 → 2 byte，最多 5 byte（32-bit）。
+// hash 之後的 key 只有 24 bit，相鄰差值通常不到 128，所以大多只要 1 byte。
+// 解碼時把差值一個一個加回去，得到的資料和原本完全相同。
+// =============================================================================
+constexpr int MAX_VARINT_BYTES = 5;
+
+static int encode_sorted(const Key* in, int n, uint8_t* out) {
+    uint8_t* p = out;
+    Key prev = 0;
+    for (int i = 0; i < n; ++i) {
+        uint32_t d = in[i] - prev;   // 已排序，所以差值一定 >= 0
+        prev = in[i];
+        while (d >= 0x80) {
+            *p++ = static_cast<uint8_t>(d | 0x80);
+            d >>= 7;
+        }
+        *p++ = static_cast<uint8_t>(d);
+    }
+    return static_cast<int>(p - out);
+}
+
+// 回傳解出的 key 數量
+static int decode_sorted(const uint8_t* in, int num_bytes, Key* out) {
+    const uint8_t* p = in;
+    const uint8_t* end = in + num_bytes;
+    Key prev = 0;
+    int n = 0;
+    while (p < end) {
+        uint32_t d = 0;
+        int shift = 0;
+        uint8_t b;
+        do {
+            b = *p++;
+            d |= static_cast<uint32_t>(b & 0x7f) << shift;
+            shift += 7;
+        } while (b & 0x80);
+        prev += d;
+        out[n++] = prev;
+    }
+    return n;
+}
+
+// 和 partner 交換一段已排序的 key，回傳收到的數量。
+// 跨節點（compress = true）時壓縮後再送；同一台節點走共享記憶體，直接送比較快。
+static int exchange_sorted(Workspace& ws, const Key* send_ptr, int send_n, int partner, bool compress) {
+    MPI_Status status;
+    int recv_n = 0;
+    if (!compress) {
+        // 對方送多少，事先不知道：用最大可能的長度接收，再用 MPI_Get_count 讀出實際數量
+        MPI_Sendrecv(send_ptr, send_n, MPI_UINT32_T, partner, TAG_DATA,
+                     ws.recv.data(), static_cast<int>(ws.recv.size()), MPI_UINT32_T, partner, TAG_DATA,
+                     MPI_COMM_WORLD, &status);
+        MPI_Get_count(&status, MPI_UINT32_T, &recv_n);
+        return recv_n;
+    }
+    const int send_bytes = encode_sorted(send_ptr, send_n, ws.send_bytes.data());
+    MPI_Sendrecv(ws.send_bytes.data(), send_bytes, MPI_BYTE, partner, TAG_DATA,
+                 ws.recv_bytes.data(), static_cast<int>(ws.recv_bytes.size()), MPI_BYTE, partner, TAG_DATA,
+                 MPI_COMM_WORLD, &status);
+    int recv_bytes = 0;
+    MPI_Get_count(&status, MPI_BYTE, &recv_bytes);
+    return decode_sorted(ws.recv_bytes.data(), recv_bytes, ws.recv.data());
+}
+
 // 兩個「已排序」block 之間的 compare-split。
 //   lower rank（編號較小）留下聯集中最小的 local_n 個；
 //   upper rank 留下最大的 local_n 個。
-static bool compare_split_sorted(Workspace& ws, int rank, int partner) {
+static bool compare_split_sorted(Workspace& ws, int rank, int partner, bool compress) {
     std::vector<Key>& mine = ws.keys;
     const int n = static_cast<int>(mine.size());
     const bool is_lower = rank < partner;
@@ -302,13 +403,7 @@ static bool compare_split_sorted(Workspace& ws, int rank, int partner) {
         send_n = static_cast<int>(last - mine.data());
     }
 
-    // 對方送多少，事先不知道：用最大可能的長度接收，再用 MPI_Get_count 讀出實際數量
-    MPI_Status status;
-    MPI_Sendrecv(send_ptr, send_n, MPI_UINT32_T, partner, TAG_DATA,
-                 ws.recv.data(), static_cast<int>(ws.recv.size()), MPI_UINT32_T, partner, TAG_DATA,
-                 MPI_COMM_WORLD, &status);
-    int recv_n = 0;
-    MPI_Get_count(&status, MPI_UINT32_T, &recv_n);
+    const int recv_n = exchange_sorted(ws, send_ptr, send_n, partner, compress);
 
     // Step 3：只合併需要的那一半，結果寫到 tmp 再交換指標（不 copy 回來）
     if (is_lower) merge_smallest(mine.data(), n, ws.recv.data(), recv_n, ws.tmp.data(), n);
@@ -384,6 +479,15 @@ int main(int argc, char** argv) {
     ws.recv.resize(std::max(L.max_count, 1));
     ws.hist.resize(2 * RADIX_24);
 
+    // 左右鄰居是否在別台節點：是的話，和它交換資料時要壓縮
+    const bool remote_left = rank > 0 && L.node[rank - 1] != L.node[rank];
+    const bool remote_right = rank + 1 < size && L.node[rank + 1] != L.node[rank];
+    if (remote_left || remote_right) {
+        const size_t bytes = static_cast<size_t>(std::max(L.max_count, 1)) * MAX_VARINT_BYTES;
+        ws.send_bytes.resize(bytes);
+        ws.recv_bytes.resize(bytes);
+    }
+
     // ---- 讀檔：直接以 32-bit 整數讀入 float 的 bit pattern ----------------------
     {
         MPI_File fh;
@@ -402,7 +506,10 @@ int main(int argc, char** argv) {
     for (int round = 0; round < rounds; ++round) {
         if (keys_are_float) radix_sort_32(ws.keys, ws.tmp);
         else                radix_sort_24(ws);   // histogram 已在上一輪結尾的 hash 中算好
-        run_odd_even_phases(L, [&](int partner) { return compare_split_sorted(ws, rank, partner); });
+        run_odd_even_phases(L, [&](int partner) {
+            const bool compress = L.node[partner] != L.node[rank];
+            return compare_split_sorted(ws, rank, partner, compress);
+        });
 
         // 這一輪全域已排好；除了最後一輪，都要 hash（hash round 從 1 開始）
         if (round + 1 < rounds) {

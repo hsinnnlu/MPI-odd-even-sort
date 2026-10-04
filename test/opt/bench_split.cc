@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
         return v1_core(partner);
     };
     auto v3 = [&](int partner) {              // 繳交版
-        const bool changed = compare_split_sorted(ws, rank, partner);
+        const bool changed = compare_split_sorted(ws, rank, partner, L.node[partner] != L.node[rank]);
         if (changed) ++exchanged; else ++skipped;
         return changed;
     };
