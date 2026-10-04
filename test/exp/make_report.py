@@ -3,7 +3,7 @@
 
 用法（repo 根目錄）：
   python3 test/exp/summarize.py                 # 先產生 test/exp/results/summary.csv
-  python3 test/exp/make_report.py [--case 10] [--scaling-storage auto|local|nfs] [--out test/exp/report]
+  python3 test/exp/make_report.py [--case 10] [--scaling-storage local|nfs|auto] [--out test/exp/report]
 
 讀取：
   test/exp/results/summary.csv     job.sh / job_scaling.sh 的結果（由 summarize.py 整理，皆為 5 次中位數）
@@ -24,7 +24,7 @@
 儲存位置：summary.csv 的 storage 欄位區分 local（node-local /tmp）與 nfs。
   * breakdown、big vs little、mixed、ori vs final 只用 local（規定的正式實驗）
   * scaling 依 --scaling-storage：
-      local  1/2/4 用 local；8 process（2 節點）只能用 nfs，圖上以不同標記並加註
+      local  （預設，報告採用）1/2/4 用 local；8 process（2 節點）只能用 nfs，圖上加註
       nfs    全部用 nfs（job_scaling.sh 的「同一儲存位置」設計）
       auto   nfs 有 1/2/4/8 就用 nfs，否則用 local
 """
@@ -39,7 +39,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--case", default="10")
 ap.add_argument("--summary", default="test/exp/results/summary.csv")
 ap.add_argument("--opt", default=None, help="run_opt.sh 的結果檔（預設取 test/opt/results/opt_*.txt 最新的）")
-ap.add_argument("--scaling-storage", default="auto", choices=["auto", "local", "nfs"])
+ap.add_argument("--scaling-storage", default="local", choices=["auto", "local", "nfs"])
 ap.add_argument("--out", default="test/exp/report")
 args = ap.parse_args()
 os.makedirs(args.out, exist_ok=True)
