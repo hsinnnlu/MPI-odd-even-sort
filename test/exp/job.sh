@@ -53,7 +53,7 @@ else
     cleanup() { rm -rf "$WORK"; }
 
     # 跨節點 MPI：若有「每台節點 IP 都一樣」的網卡（例如 docker0），Open MPI 的 TCP 會連錯人
-    # （received unexpected process identifier）。找出這些網卡並排除，同 test/judge.sh。
+    # （received unexpected process identifier）。找出這些網卡並排除。
     if [ -z "${OMPI_MCA_btl_tcp_if_exclude:-}" ]; then
         bad=$(srun -N"$NODES" --ntasks-per-node=1 -c 1 -l ip -4 -o addr show 2>/dev/null | awk '
             $3 != "lo" { split($5, a, "/"); seen[a[1]]++; name[a[1]] = $3 }
