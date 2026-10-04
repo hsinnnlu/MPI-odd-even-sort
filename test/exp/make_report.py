@@ -15,6 +15,7 @@
   fig_big_vs_little.png      big 與 little 的總時間比較
   fig_mixed.png              mixed 1/4/8 的時間組成（big + little 混合節點）
   fig_ori_vs_final.png       最初版本 vs final（對數座標，標出加速倍數）
+  fig_compression.png        2 節點：跨節點壓縮開 / 關（final vs final_nocomp）的時間組成與傳送量
   fig_opt_radix.png          Optimization 1：local sort 各做法時間
   fig_opt_split.png          Optimization 2：compare-split 四種做法的時間與傳送量
   fig_opt_active.png         Optimization 3：小 N 時每 rank 至少 4096 筆的效果
@@ -276,7 +277,7 @@ else:
 # ---- 6. 通訊量與有效頻寬 ----
 rows = []
 for (st, v, part, nodes, p), r in sorted(R.items(), key=lambda kv: (kv[0][1], kv[0][2], kv[0][3], kv[0][4])):
-    if p > 1 and v in ("ori", "final") and r.get("sendrecv_MB"):
+    if p > 1 and v in ("ori", "final", "final_nocomp") and r.get("sendrecv_MB"):
         bw = r.get("comm_bw_MBps")
         rows.append([v.replace("_", "\\_"), part, nodes, p, "/tmp" if st == "local" else "NFS",
                      f"{r['sendrecv_MB']:.0f}", f3(r["comm_s"]), f"{bw:.0f}" if isinstance(bw, float) else "--"])
@@ -286,6 +287,50 @@ if rows:
           "bound.", "tab:comm",
           ["Version", "Partition", "Nodes", "Processes", "Storage", "Sent (MB)", "Comm. (s)", "Eff. BW (MB/s)"],
           rows, "lllrlrrr")
+
+# ---- 7. 跨節點壓縮（2 節點：final vs final_nocomp） ----
+comp = []
+for (st, v, part, nodes, p), r in sorted(R.items(), key=lambda kv: (kv[0][2], kv[0][4])):
+    if v == "final" and nodes > 1 and (st, "final_nocomp", part, nodes, p) in R:
+        comp.append((part, nodes, p, R[(st, "final_nocomp", part, nodes, p)], r))
+if comp:
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 4))
+    labels, xs = [], []
+    for i, (part, nodes, p, off, on) in enumerate(comp):
+        for j, (r, name) in enumerate(((off, "off"), (on, "on"))):
+            x = i * 3 + j
+            xs.append(x)
+            labels.append(f"{part} {p}p\ncompress {name}")
+            bottom = 0.0
+            for key, lab, col in (("compute_s", "Computation", C_COMP), ("comm_s", "Communication", C_COMM),
+                                  ("sync_s", "Synchronization", C_SYNC), ("io_s", "I/O", C_IO)):
+                a1.bar(x, r[key], bottom=bottom, color=col, label=lab if x == 0 else None, width=0.8)
+                bottom += r[key]
+            a1.text(x, bottom, f"{r['total_s']:.2f}", ha="center", va="bottom", fontsize=8)
+            a2.bar(x, r["sendrecv_MB"], color="#8C8C8C" if name == "off" else C_COMP, width=0.8)
+            a2.text(x, r["sendrecv_MB"], f"{r['sendrecv_MB']:.0f}", ha="center", va="bottom", fontsize=8)
+    for ax, yl, t in ((a1, "time (s)", "Time profile"),
+                      (a2, "MPI_Sendrecv payload, all ranks (MB)", "Communication volume")):
+        ax.set_xticks(xs, labels, fontsize=7)
+        ax.set_ylabel(yl)
+        ax.set_title(t)
+        ax.grid(axis="y", alpha=0.3)
+    a1.legend(fontsize=7, loc="upper right")
+    a1.set_ylim(0, max(max(off["total_s"], on["total_s"]) for *_, off, on in comp) * 1.35)
+    fig.suptitle(f"Cross-node compression on two nodes (case {args.case}, shared NFS)", fontsize=10)
+    save(fig, "fig_compression.png")
+    table(f"Effect of compressing the data exchanged between ranks on different nodes (two nodes, case {args.case}, "
+          "shared NFS, median of 5 trials). Sent volume is the sum over all ranks; only the pair that crosses "
+          "the node boundary is compressed.", "tab:compression",
+          ["Partition", "Processes", "Compression", "Total (s)", "Comm. (s)", "Sync. (s)", "Sent (MB)", "Speedup"],
+          [row for part, nodes, p, off, on in comp for row in (
+              [part, p, "off", f3(off["total_s"]), f3(off["comm_s"]), f3(off["sync_s"]),
+               f"{off['sendrecv_MB']:.0f}", "1.00"],
+              [part, p, "on", f3(on["total_s"]), f3(on["comm_s"]), f3(on["sync_s"]),
+               f"{on['sendrecv_MB']:.0f}", f"{off['total_s'] / on['total_s']:.2f}"])],
+          "lrlrrrrr")
+else:
+    skip("跨節點壓縮", "沒有 2 節點的 final 與 final_nocomp 結果（submit_all.sh 的 big2n、mixed2n）")
 
 # =============================================================================
 # test/opt/results/opt_*.txt

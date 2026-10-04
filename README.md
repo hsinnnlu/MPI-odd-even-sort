@@ -7,11 +7,12 @@
 ```bash
 module load compiler/gcc/13 mpi/openmpi/5.0.10
 
-# 1. 正式計時實驗：big / little / mixed / 2 節點，測資 10，每個設定 5 次
+# 1. 正式計時實驗：big / little / mixed / 2 節點（含跨節點壓縮開關），測資 10，每個設定 5 次
 #    輸入輸出放 node-local /tmp；strong scaling（big 1/2/4 + 2 節點 8）全部放共享 NFS
 bash test/exp/submit_all.sh
 
-# 2. 三個優化的佐證：radix sort、compare-split、active process
+# 2. 優化的佐證：radix sort、selective compare-split、每 rank 至少 4096 筆
+#    （跨節點壓縮的效果在步驟 1 的 big2n / mixed2n：final vs final_nocomp）
 sbatch test/opt/run_opt.sh
 
 # 3. Nsight Systems：只看 timeline 與通訊行為，不拿來計時
