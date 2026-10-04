@@ -1,0 +1,15 @@
+final/mixed/N1/p8/t1/c10  wall=2.7885s  OK
+final/mixed/N1/p4/t1/c10  wall=2.6760s  OK
+final/mixed/N1/p1/t1/c10  wall=2.0508s  OK
+final/mixed/N1/p8/t2/c10  wall=2.7463s  OK
+final/mixed/N1/p4/t2/c10  wall=2.6389s  OK
+final/mixed/N1/p1/t2/c10  wall=2.0671s  OK
+final/mixed/N1/p8/t3/c10  wall=2.7363s  OK
+final/mixed/N1/p4/t3/c10  wall=2.6914s  OK
+final/mixed/N1/p1/t3/c10  wall=2.0765s  OK
+final/mixed/N1/p8/t4/c10  wall=2.7974s  OK
+final/mixed/N1/p4/t4/c10  wall=2.6773s  OK
+final/mixed/N1/p1/t4/c10  wall=2.0779s  OK
+final/mixed/N1/p8/t5/c10  wall=2.7849s  OK
+final/mixed/N1/p4/t5/c10  wall=2.6821s  OK
+final/mixed/N1/p1/t5/c10  wall=2.0455s  OK

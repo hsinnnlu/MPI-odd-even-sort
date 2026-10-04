@@ -1,0 +1,12 @@
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+ori/little/N1/p4/t1/c10  wall=21.7727s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+ori/little/N1/p4/t2/c10  wall=21.7548s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+ori/little/N1/p4/t3/c10  wall=21.7786s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+ori/little/N1/p4/t4/c10  wall=21.8779s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+ori/little/N1/p4/t5/c10  wall=21.7976s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.

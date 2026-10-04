@@ -1,0 +1,41 @@
+rank,mpi_call,category,count,total_ms,mean_us,bytes
+0,MPI_Sendrecv,Communication,165,610.533,3700.2,2158778508
+0,MPI_Allreduce,Synchronization / other MPI,50,144.561,2891.21,800
+0,MPI_Init,Synchronization / other MPI,1,74.547,74546.87,0
+0,MPI_Finalize,Synchronization / other MPI,1,43.204,43203.56,0
+0,MPI_File_write_at_all,I/O,1,30.268,30267.55,0
+0,MPI_File_read_at_all,I/O,1,14.477,14477.47,0
+0,MPI_File_open,I/O,2,1.061,530.5,0
+0,MPI_File_close,I/O,2,0.172,85.93,0
+0,MPI_Allgather,Synchronization / other MPI,1,0.047,46.75,1024
+0,MPI_File_set_size,I/O,1,0.032,31.55,0
+1,MPI_Sendrecv,Communication,293,333.773,1139.16,2758649484
+1,MPI_Init,Synchronization / other MPI,1,74.543,74542.98,0
+1,MPI_Finalize,Synchronization / other MPI,1,42.824,42824.06,0
+1,MPI_File_close,I/O,2,21.462,10730.78,0
+1,MPI_File_write_at_all,I/O,1,13.286,13286.37,0
+1,MPI_File_read_at_all,I/O,1,10.188,10188.29,0
+1,MPI_Allreduce,Synchronization / other MPI,50,3.811,76.22,800
+1,MPI_File_open,I/O,2,1.034,516.86,0
+1,MPI_File_set_size,I/O,1,0.031,31.34,0
+1,MPI_Allgather,Synchronization / other MPI,1,0.025,24.56,1024
+2,MPI_Sendrecv,Communication,292,334.136,1144.3,2734659900
+2,MPI_Init,Synchronization / other MPI,1,74.578,74578.35,0
+2,MPI_Finalize,Synchronization / other MPI,1,43.215,43215.36,0
+2,MPI_File_write_at_all,I/O,1,21.058,21058.3,0
+2,MPI_File_read_at_all,I/O,1,12.614,12614.5,0
+2,MPI_File_close,I/O,2,11.27,5634.79,0
+2,MPI_Allreduce,Synchronization / other MPI,50,8.345,166.9,800
+2,MPI_File_open,I/O,2,1.039,519.73,0
+2,MPI_Allgather,Synchronization / other MPI,1,0.047,46.86,1024
+2,MPI_File_set_size,I/O,1,0.031,31.46,0
+3,MPI_Sendrecv,Communication,164,609.865,3718.69,2134788924
+3,MPI_Allreduce,Synchronization / other MPI,50,166.927,3338.54,800
+3,MPI_Init,Synchronization / other MPI,1,80.545,80545.01,0
+3,MPI_Finalize,Synchronization / other MPI,1,43.226,43226.33,0
+3,MPI_File_write_at_all,I/O,1,22.111,22111.32,0
+3,MPI_File_read_at_all,I/O,1,13.957,13956.89,0
+3,MPI_File_close,I/O,2,8.868,4433.76,0
+3,MPI_File_open,I/O,2,0.758,378.98,0
+3,MPI_File_set_size,I/O,1,0.032,31.55,0
+3,MPI_Allgather,Synchronization / other MPI,1,0.018,17.76,1024

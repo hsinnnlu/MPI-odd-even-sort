@@ -1,0 +1,32 @@
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N1/p1/t1/c10  wall=2.1429s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N1/p2/t1/c10  wall=2.0591s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N1/p4/t1/c10  wall=2.4198s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N1/p1/t2/c10  wall=2.1399s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N1/p2/t2/c10  wall=2.0881s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N1/p4/t2/c10  wall=2.4215s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N1/p1/t3/c10  wall=2.1482s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N1/p2/t3/c10  wall=2.1153s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N1/p4/t3/c10  wall=2.3869s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N1/p1/t4/c10  wall=2.1187s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N1/p2/t4/c10  wall=2.0668s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N1/p4/t4/c10  wall=2.4167s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N1/p1/t5/c10  wall=2.1666s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N1/p2/t5/c10  wall=2.0730s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N1/p4/t5/c10  wall=2.4198s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.

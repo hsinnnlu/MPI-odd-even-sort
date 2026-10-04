@@ -1,0 +1,20 @@
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N2/p8/t1/c10  wall=7.4061s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final_nocomp/big/N2/p8/t1/c10  wall=12.6056s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N2/p8/t2/c10  wall=7.1532s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final_nocomp/big/N2/p8/t2/c10  wall=10.2170s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N2/p8/t3/c10  wall=6.2676s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final_nocomp/big/N2/p8/t3/c10  wall=10.1795s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N2/p8/t4/c10  wall=6.1287s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final_nocomp/big/N2/p8/t4/c10  wall=9.2718s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final/big/N2/p8/t5/c10  wall=5.4758s  OK
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+final_nocomp/big/N2/p8/t5/c10  wall=9.1992s  OK
