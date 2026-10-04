@@ -13,6 +13,8 @@
 #   PROCS      要跑的 process 數，例如 "1 2 4"
 #   TRIALS     每個設定的重複次數（預設 5）
 #   CASE_ID    使用的公開測資編號（預設 10，N = 23,987,513）
+#   STORAGE_MODE  local（預設；單節點用 /tmp，多節點自動改 NFS）或 nfs（單節點也用 NFS，
+#                 讓 big 的 1/2/4 process 和 2 節點 8 process 用同一種儲存位置比較）
 #
 # 每次執行寫兩種紀錄到 test/exp/results/<EXP_NAME>_<job id>.csv：
 #   PROF,...  每個 rank 的 total/io/comm/sync/compute（由 prof_wrap.h 印出）
@@ -41,20 +43,20 @@ read -r N _nodes _procs _part ROUNDS < <(python3 test/parse_case.py "$CASES/$CAS
 # 多節點：/tmp 是各節點自己的硬碟，第二台的 rank 寫不到第一台的輸出檔，
 #         所以改用 repo 裡的共用目錄（NFS）。報告中要把這組結果標成 NFS，
 #         不能和單節點 /tmp 的結果當成同一種設定比較。
-if [ "$NODES" -eq 1 ]; then
+if [ "$NODES" -eq 1 ] && [ "${STORAGE_MODE:-local}" != nfs ]; then
     WORK=/tmp/hw1exp_${SLURM_JOB_ID}
     STORAGE="node-local $WORK"
     srun -N1 --ntasks-per-node=1 -c 1 bash -c "mkdir -p $WORK && cp $CASES/$CASE_ID.in $WORK/in" || { echo "staging 失敗" >&2; exit 1; }
     cleanup() { srun -N1 --ntasks-per-node=1 -c 1 rm -rf "$WORK"; }
 else
     WORK=$REPO/test/exp/work_${SLURM_JOB_ID}
-    STORAGE="shared NFS $WORK (multi-node)"
+    STORAGE="shared NFS $WORK$([ "$NODES" -gt 1 ] && echo ' (multi-node)')"
     mkdir -p "$WORK" && cp "$CASES/$CASE_ID.in" "$WORK/in" || { echo "staging 失敗" >&2; exit 1; }
     cleanup() { rm -rf "$WORK"; }
 
     # 跨節點 MPI：若有「每台節點 IP 都一樣」的網卡（例如 docker0），Open MPI 的 TCP 會連錯人
     # （received unexpected process identifier）。找出這些網卡並排除。
-    if [ -z "${OMPI_MCA_btl_tcp_if_exclude:-}" ]; then
+    if [ "$NODES" -gt 1 ] && [ -z "${OMPI_MCA_btl_tcp_if_exclude:-}" ]; then
         bad=$(srun -N"$NODES" --ntasks-per-node=1 -c 1 -l ip -4 -o addr show 2>/dev/null | awk '
             $3 != "lo" { split($5, a, "/"); seen[a[1]]++; name[a[1]] = $3 }
             END { for (ip in seen) if (seen[ip] > 1) print name[ip] }' | sort -u | tr '\n' ',')

@@ -20,6 +20,7 @@
 #   big     -p big    -N1  procs 1 2 4   版本 final ori   ← strong scaling（同質）+ 前後比較
 #   little  -p little -N1  procs 1 2 4   版本 final ori   ← big vs little
 #   mixed   -p mixed  -N1  procs 8 4 1   版本 final final_nocap   ← 整台節點、異質核心（1 = mixed 自己的 speedup 基準）
+#   bignfs  -p big    -N1  procs 1 2 4   版本 final   ← strong scaling 用：和 big2n 一樣放 NFS
 #   big2n   -p big    -N2  procs 8       版本 final final_nocap   ← big 8 個 process（每節點只有 4 個 big core，必須 2 節點）
 # =============================================================================
 set -eu
@@ -56,15 +57,15 @@ echo "已編譯：final final_nocap ori（$B/）"
 # ---- 送出 job -------------------------------------------------------------------
 export REPO TRIALS=${TRIALS:-5} CASE_ID=${CASE_ID:-10}
 SUFFIX=$([ "$CASE_ID" = 10 ] || echo "_case$CASE_ID")
-ONLY=${ONLY:-"big little mixed big2n"}
+ONLY=${ONLY:-"big little mixed bignfs big2n"}
 # 每個 job 的時間上限。課程的 QOS 有「單一 job 最長執行時間」的限制，
 # 超過的 job 會一直卡在 PD（QOSMaxWallDurationPerJobLimit）。
 # 查限制：sacctmgr -P show qos format=Name,MaxWall ；或 scontrol show partition big | grep MaxTime
 LIMIT=${LIMIT:-10:00}
-submit() {   # submit <名字> <sbatch 參數> <procs> <versions>
-    local name=$1 opts=$2 procs=$3 versions=$4
+submit() {   # submit <名字> <sbatch 參數> <procs> <versions> [local|nfs]
+    local name=$1 opts=$2 procs=$3 versions=$4 storage=${5:-local}
     [[ " $ONLY " == *" ${name%%_*} "* ]] || return 0
-    EXP_NAME=$name$SUFFIX PROCS=$procs VERSIONS=$versions \
+    EXP_NAME=$name$SUFFIX PROCS=$procs VERSIONS=$versions STORAGE_MODE=$storage \
         sbatch --parsable -J "hw1exp-$name" $opts ${EXCLUSIVE:+--exclusive} -t "$LIMIT" -o "test/exp/results/slurm_${name}_%j.txt" test/exp/job.sh \
         | sed "s/^/送出 $name（procs: $procs；版本: $versions），job id = /"
 }
@@ -76,6 +77,7 @@ for p in 1 2 4; do
     submit little_ori_p$p "-p little -N1 -n4" "$p" "ori"
 done
 submit mixed         "-p mixed -N1 -n8"  "8 4 1" "final final_nocap"
+submit bignfs        "-p big -N1 -n4"    "1 2 4" "final" nfs
 submit big2n         "-p big -N2 -n8"    "8"     "final final_nocap"
 echo
 echo "用 squeue -u \$USER 查看進度；全部結束後執行：python3 test/exp/summarize.py"

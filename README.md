@@ -8,7 +8,7 @@
 module load compiler/gcc/13 mpi/openmpi/5.0.10
 
 # 1. 正式計時實驗：big / little / mixed / 2 節點，測資 10，每個設定 5 次
-#    單節點的輸入輸出放 node-local /tmp；2 節點（8 process）只能用共享 NFS
+#    輸入輸出放 node-local /tmp；strong scaling（big 1/2/4 + 2 節點 8）全部放共享 NFS
 bash test/exp/submit_all.sh
 
 # 2. 三個優化的佐證：radix sort、compare-split、active process

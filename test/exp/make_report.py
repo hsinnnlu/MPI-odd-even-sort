@@ -24,8 +24,8 @@
 儲存位置：summary.csv 的 storage 欄位區分 local（node-local /tmp）與 nfs。
   * breakdown、big vs little、mixed、ori vs final 只用 local（規定的正式實驗）
   * scaling 依 --scaling-storage：
-      local  （預設，報告採用）1/2/4 用 local；8 process（2 節點）只能用 nfs，圖上加註
-      nfs    全部用 nfs（job_scaling.sh 的「同一儲存位置」設計）
+      nfs    （預設，報告採用）1/2/4/8 全部用 nfs（submit_all.sh 的 bignfs + big2n）
+      local  1/2/4 用 local；8 process（2 節點）只能用 nfs，圖上加註
       auto   nfs 有 1/2/4/8 就用 nfs，否則用 local
 """
 import argparse
@@ -39,7 +39,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--case", default="10")
 ap.add_argument("--summary", default="test/exp/results/summary.csv")
 ap.add_argument("--opt", default=None, help="run_opt.sh 的結果檔（預設取 test/opt/results/opt_*.txt 最新的）")
-ap.add_argument("--scaling-storage", default="local", choices=["auto", "local", "nfs"])
+ap.add_argument("--scaling-storage", default="nfs", choices=["auto", "local", "nfs"])
 ap.add_argument("--out", default="test/exp/report")
 args = ap.parse_args()
 os.makedirs(args.out, exist_ok=True)
