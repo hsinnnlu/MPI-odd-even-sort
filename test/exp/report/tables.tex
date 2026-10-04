@@ -109,16 +109,16 @@ ori & little & 1 & 4 & /tmp & 10794 & 0.603 & 4374 \\
 
 \begin{table}[htbp]
 \centering
-\caption{Effect of compressing the data exchanged between ranks on different nodes (two nodes, case 10, shared NFS, median of 5 trials). Sent volume is the sum over all ranks; only the pair that crosses the node boundary is compressed.}
+\caption{Effect of compressing the data exchanged between ranks on different nodes (two nodes, case 10, shared NFS, median of 5 trials). Only the pair of ranks at the node boundary is compressed; boundary sent = data sent by these two ranks (to both of their neighbours).}
 \label{tab:compression}
-\begin{tabular}{lrlrrrrr}
+\begin{tabular}{lrlrrrrrr}
 \toprule
-Partition & Processes & Compression & Total (s) & Comm. (s) & Sync. (s) & Sent (MB) & Speedup \\
+Partition & Processes & Compression & Total (s) & Comm. (s) & Sync. (s) & Boundary sent (MB) & All ranks sent (MB) & Speedup \\
 \midrule
-big & 8 & off & 13.700 & 9.648 & 0.169 & 12294 & 1.00 \\
-big & 8 & on & 5.966 & 1.845 & 0.069 & 11394 & 2.30 \\
-mixed & 16 & off & 11.829 & 8.306 & 0.272 & 24438 & 1.00 \\
-mixed & 16 & on & 5.371 & 2.051 & 0.147 & 23539 & 2.20 \\
+big & 8 & off & 13.700 & 9.648 & 0.169 & 2999 & 12294 & 1.00 \\
+big & 8 & on & 5.966 & 1.845 & 0.069 & 2099 & 11394 & 2.30 \\
+mixed & 16 & off & 11.829 & 8.306 & 0.272 & 2699 & 24438 & 1.00 \\
+mixed & 16 & on & 5.371 & 2.051 & 0.147 & 1800 & 23539 & 2.20 \\
 \bottomrule
 \end{tabular}
 \end{table}

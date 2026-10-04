@@ -308,10 +308,10 @@ if comp:
                 a1.bar(x, r[key], bottom=bottom, color=col, label=lab if x == 0 else None, width=0.8)
                 bottom += r[key]
             a1.text(x, bottom, f"{r['total_s']:.2f}", ha="center", va="bottom", fontsize=8)
-            a2.bar(x, r["sendrecv_MB"], color="#8C8C8C" if name == "off" else C_COMP, width=0.8)
-            a2.text(x, r["sendrecv_MB"], f"{r['sendrecv_MB']:.0f}", ha="center", va="bottom", fontsize=8)
+            a2.bar(x, r["node_edge_MB"], color="#8C8C8C" if name == "off" else C_COMP, width=0.8)
+            a2.text(x, r["node_edge_MB"], f"{r['node_edge_MB']:.0f}", ha="center", va="bottom", fontsize=8)
     for ax, yl, t in ((a1, "time (s)", "Time profile"),
-                      (a2, "MPI_Sendrecv payload, all ranks (MB)", "Communication volume")):
+                      (a2, "MB sent by the two ranks at the node boundary", "Data sent by the node-boundary ranks")):
         ax.set_xticks(xs, labels, fontsize=7)
         ax.set_ylabel(yl)
         ax.set_title(t)
@@ -321,15 +321,16 @@ if comp:
     fig.suptitle(f"Cross-node compression on two nodes (case {args.case}, shared NFS)", fontsize=10)
     save(fig, "fig_compression.png")
     table(f"Effect of compressing the data exchanged between ranks on different nodes (two nodes, case {args.case}, "
-          "shared NFS, median of 5 trials). Sent volume is the sum over all ranks; only the pair that crosses "
-          "the node boundary is compressed.", "tab:compression",
-          ["Partition", "Processes", "Compression", "Total (s)", "Comm. (s)", "Sync. (s)", "Sent (MB)", "Speedup"],
+          "shared NFS, median of 5 trials). Only the pair of ranks at the node boundary is compressed; "
+          "boundary sent = data sent by these two ranks (to both of their neighbours).", "tab:compression",
+          ["Partition", "Processes", "Compression", "Total (s)", "Comm. (s)", "Sync. (s)", "Boundary sent (MB)",
+           "All ranks sent (MB)", "Speedup"],
           [row for part, nodes, p, off, on in comp for row in (
               [part, p, "off", f3(off["total_s"]), f3(off["comm_s"]), f3(off["sync_s"]),
-               f"{off['sendrecv_MB']:.0f}", "1.00"],
+               f"{off['node_edge_MB']:.0f}", f"{off['sendrecv_MB']:.0f}", "1.00"],
               [part, p, "on", f3(on["total_s"]), f3(on["comm_s"]), f3(on["sync_s"]),
-               f"{on['sendrecv_MB']:.0f}", f"{off['total_s'] / on['total_s']:.2f}"])],
-          "lrlrrrrr")
+               f"{on['node_edge_MB']:.0f}", f"{on['sendrecv_MB']:.0f}", f"{off['total_s'] / on['total_s']:.2f}"])],
+          "lrlrrrrrr")
 else:
     skip("跨節點壓縮", "沒有 2 節點的 final 與 final_nocomp 結果（submit_all.sh 的 big2n、mixed2n）")
 

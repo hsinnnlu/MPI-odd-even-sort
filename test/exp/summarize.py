@@ -86,6 +86,11 @@ for (case, ver, part, nodes, p, store, trial), ranks in prof.items():
     d["imbalance"].append(max(r["compute"] for r in busy) / mins if mins > 0 else float("nan"))
     d["busy"].append(len(busy))
     d["MB"].append(sum(r["MB"] for r in ranks))
+    # 位在節點邊界的 rank（左或右鄰居在另一台節點）送出的量：跨節點壓縮只作用在這些 rank 上
+    by_rank = {r["rank"]: r for r in ranks}
+    edge = [r for r in ranks if any(q in by_rank and by_rank[q]["host"] != r["host"]
+                                    for q in (r["rank"] - 1, r["rank"] + 1))]
+    d["edge_MB"].append(sum(r["MB"] for r in edge))
     if trial == 1:
         mapping[cfg] = " ".join(f"r{r['rank']}:{r['host'].split('.')[0]}/cpu{r['cpu']}"
                                 for r in sorted(ranks, key=lambda r: r["rank"]))
@@ -129,7 +134,7 @@ for c in cfgs:
                  "comm_s": round(m["comm"], 4), "sync_s": round(m["sync"], 4), "compute_s": round(m["compute"], 4),
                  "speedup": round(sp, 3), "speedup_base": ("local" if borrowed else c[5]),
                  "compute_imbalance": round(m["imbalance"], 3),
-                 "sendrecv_MB": round(m["MB"]), "comm_bw_MBps": round(m["bw"]) if m["bw"] == m["bw"] else "",
+                 "sendrecv_MB": round(m["MB"]), "node_edge_MB": round(m["edge_MB"]) if "edge_MB" in m else 0, "comm_bw_MBps": round(m["bw"]) if m["bw"] == m["bw"] else "",
                  "wall_s": round(wmed, 3), "correct": ok, "trials": len(per_cfg[c]["total"])})
 
 missing = sorted(set(wall) - set(med), key=lambda c: (c[0], c[5], order.get(c[1], 9), part_order.get(c[2], 9), c[3], c[4]))
