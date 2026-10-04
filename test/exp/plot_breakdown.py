@@ -17,6 +17,7 @@ with open(csv_path, newline="") as f:
             and row["partition"] == "big"
             and int(row["nodes"]) == 1
             and int(row["procs"]) in [1, 2, 4]
+            and row.get("storage", "local") == "local"
         ):
             rows.append(row)
 
