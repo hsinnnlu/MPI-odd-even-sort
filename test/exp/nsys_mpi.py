@@ -139,7 +139,7 @@ def timeline(window, fname, title):
     if window:
         ax.set_xlim(*window)
     ax.set_xlabel("time since first MPI event (s)")
-    ax.set_title(title, fontsize=11)
+    ax.set_title(title, fontsize=9)
     handles = [Patch(color=v, label=k) for k, v in COLOURS.items()] + \
               [Patch(facecolor="white", edgecolor="#999999", label="outside MPI (local computation)")]
     ax.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=4, fontsize=8, frameon=False)
@@ -150,12 +150,12 @@ def timeline(window, fname, title):
     print(f"已輸出 {os.path.join(folder, fname)}")
 
 
-timeline(None, "timeline_full.png", f"MPI timeline per rank (Nsight Systems) — {info}")
+timeline(None, "timeline_full.png", f"MPI timeline per rank (Nsight Systems)\n{info}")
 if zoom is None:
     mid = span / 2
     zoom = (mid, mid + 0.04 * span)
 timeline(zoom, "timeline_zoom.png",
-         f"MPI timeline, zoom {zoom[0]:.3f}–{zoom[1]:.3f} s — {info}")
+         f"MPI timeline, zoom {zoom[0]:.3f}–{zoom[1]:.3f} s\n{info}")
 
 sizes = [size for ev in ranks.values() for name, s, e, size in ev
          if size and "sendrecv" in name.lower()]
@@ -165,7 +165,7 @@ if sizes:
     ax.hist([s / 1e6 for s in big], bins=30, color="#DD8452")
     ax.set_xlabel("MPI_Sendrecv message size (MB)")
     ax.set_ylabel("number of calls")
-    ax.set_title(f"Sendrecv message sizes > 64 B ({len(big)} of {len(sizes)} calls) — {info}", fontsize=9)
+    ax.set_title(f"Sendrecv message sizes > 64 B ({len(big)} of {len(sizes)} calls)\n{info}", fontsize=9)
     ax.grid(axis="y", alpha=0.3)
     fig.tight_layout()
     fig.savefig(os.path.join(folder, "msg_size_hist.png"))

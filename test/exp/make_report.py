@@ -59,7 +59,8 @@ tex = ["% 由 test/exp/make_report.py 自動產生；需要 \\usepackage{booktab
 
 def save(fig, name):
     path = os.path.join(args.out, name)
-    fig.tight_layout()
+    # 有 footnote（fig.text）時，留出底部空間，避免和 x 軸標籤重疊
+    fig.tight_layout(rect=(0, 0.08, 1, 1) if fig.texts else None)
     fig.savefig(path, dpi=200)
     plt.close(fig)
     print(f"  圖：{path}")
@@ -75,6 +76,42 @@ def table(caption, label, header, rows, align=None):
     print(f"  表：{label}")
 
 
+# 圖下方的共同註解：定義衍生指標，讓每張圖單獨看也看得懂
+PROFILE_NOTE = ("Median of 5 trials. Total = max over ranks; I/O, Comm. (MPI_Sendrecv), Sync. (MPI_Allreduce) = mean over "
+                "sorting ranks; Computation = Total - I/O - Comm. - Sync.")
+SPEEDUP_NOTE = "Speedup(p) = T(1) / T(p); compute-only speedup uses computation time only. Median of 5 trials."
+
+
+def footnote(fig, text):
+    fig.text(0.5, 0.005, text, ha="center", va="bottom", fontsize=6.5, color="#555555", wrap=True)
+
+
+def stacked_profile(ax, rows, xlabels, err=True):
+    """rows = [row]：畫 Computation / Communication / Synchronization / I/O 堆疊圖，
+    上方標 total（中位數），誤差線 = 5 次中 total 的最小值～最大值。"""
+    xs = list(range(len(rows)))
+    bottom = [0.0] * len(rows)
+    for key, lab, col in (("compute_s", "Computation", C_COMP), ("comm_s", "Communication", C_COMM),
+                          ("sync_s", "Synchronization", C_SYNC), ("io_s", "I/O", C_IO)):
+        vals = [r[key] for r in rows]
+        ax.bar(xs, vals, bottom=bottom, color=col, label=lab, width=0.6)
+        bottom = [b + v for b, v in zip(bottom, vals)]
+    tops = [r["total_s"] for r in rows]
+    if err and all("total_min_s" in r for r in rows):
+        lo = [r["total_s"] - r["total_min_s"] for r in rows]
+        hi = [r["total_max_s"] - r["total_s"] for r in rows]
+        ax.errorbar(xs, tops, yerr=[lo, hi], fmt="none", ecolor="black", capsize=4, linewidth=1,
+                    label="total: min-max of 5 trials")
+        tops = [r["total_max_s"] for r in rows]
+    for x, r, t, h in zip(xs, rows, tops, bottom):
+        ax.text(x, max(t, h), f"{r['total_s']:.2f} s", ha="center", va="bottom", fontsize=8)
+    ax.set_xticks(xs, xlabels)
+    ax.set_ylabel("time (s)")
+    ax.set_ylim(0, max(max(bottom), max(tops)) * 1.25)
+    ax.grid(axis="y", alpha=0.3)
+    ax.legend(fontsize=7, loc="upper left", ncol=2)
+
+
 def skip(what, why):
     print(f"  略過 {what}：{why}")
 
@@ -88,7 +125,8 @@ if os.path.exists(args.summary):
         if r.get("case", args.case) != args.case:
             continue
         key = (r.get("storage", "local"), r["version"], r["partition"], int(r["nodes"]), int(r["procs"]))
-        R[key] = {k: (float(v) if re.fullmatch(r"-?[\d.]+(e-?\d+)?|nan", v or "x") else v) for k, v in r.items()}
+        R[key] = {k: (float(v) if k != "cpus" and re.fullmatch(r"-?[\d.]+(e-?\d+)?|nan", v or "x") else v)
+                  for k, v in r.items()}
 else:
     print(f"找不到 {args.summary}（先跑 python3 test/exp/summarize.py），只處理 opt 結果")
 
@@ -111,27 +149,19 @@ print(f"[summary] case {args.case}")
 # ---- 1. 時間組成（final / big / local / 1 節點） ----
 s = series("local", "final", "big", 1, [1, 2, 4])
 if s:
-    fig, ax = plt.subplots(figsize=(6.4, 4.2))
-    xs = [str(p) for p, _ in s]
-    bottom = [0.0] * len(s)
-    for key, lab, col in (("compute_s", "Computation", C_COMP), ("comm_s", "Communication", C_COMM),
-                          ("sync_s", "Synchronization", C_SYNC), ("io_s", "I/O", C_IO)):
-        vals = [r[key] for _, r in s]
-        ax.bar(xs, vals, bottom=bottom, color=col, label=lab, width=0.6)
-        bottom = [b + v for b, v in zip(bottom, vals)]
-    for i, (_, r) in enumerate(s):
-        ax.text(i, bottom[i], f"{r['total_s']:.2f} s", ha="center", va="bottom", fontsize=9)
-    ax.set_xlabel("number of MPI processes (big cores, 1 node)")
-    ax.set_ylabel("time (s)")
-    ax.set_title(f"Time profile of the final version (case {args.case}, node-local /tmp)")
-    ax.set_ylim(0, max(bottom) * 1.15)
-    ax.legend(fontsize=8)
-    ax.grid(axis="y", alpha=0.3)
+    fig, ax = plt.subplots(figsize=(6.4, 4.4))
+    stacked_profile(ax, [r for _, r in s], [str(p) for p, _ in s])
+    ax.set_xlabel("number of MPI processes (big partition, 1 node)")
+    ax.set_title(f"Time profile, final version\n(case {args.case}, N = 23,987,513, 25 rounds, node-local /tmp)",
+                 fontsize=10)
+    footnote(fig, PROFILE_NOTE)
     save(fig, "fig_breakdown_big.png")
-    table(f"Time profile of the final version on big cores (case {args.case}, median of 5 trials, seconds).",
+    table(f"Time profile of the final version on big cores (case {args.case}, node-local /tmp, median of 5 trials, "
+          "seconds). Range = min--max of the total time over the 5 trials.",
           "tab:breakdown",
-          ["Processes", "Total", "I/O (read / write)", "Comm.", "Sync.", "Compute", "Speedup"],
-          [[p, f3(r["total_s"]), f"{r['io_s']:.3f} ({r['io_read_s']:.3f} / {r['io_write_s']:.3f})",
+          ["Processes", "Total", "Range", "I/O (read / write)", "Comm.", "Sync.", "Compute", "Speedup"],
+          [[p, f3(r["total_s"]), f"{r['total_min_s']:.2f}--{r['total_max_s']:.2f}",
+            f"{r['io_s']:.3f} ({r['io_read_s']:.3f} / {r['io_write_s']:.3f})",
             f3(r["comm_s"]), f3(r["sync_s"]), f3(r["compute_s"]), f"{r['speedup']:.2f}"] for p, r in s])
 else:
     skip("時間組成", "沒有 local/final/big/N1 的結果（跑 submit_all.sh 的 big job）")
@@ -148,18 +178,12 @@ else:
     sc = [(p, r, "local") for p, r in loc_s] + [(8, r, "nfs") for _, r in series("nfs", "final", "big", 2, [8])]
 if len(sc) >= 2 and sc[0][0] == 1:
     base, base_c = sc[0][1]["total_s"], sc[0][1]["compute_s"]
-    fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 4))
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(10.5, 4.6))
     ps = [p for p, _, _ in sc]
-    a1.plot(ps, [r["total_s"] for _, r, _ in sc], "o-", color=C_COMP, label="total")
-    a1.plot(ps, [r["compute_s"] for _, r, _ in sc], "s--", color="#8172B3", label="compute only")
-    a1.plot(ps, [r["io_s"] for _, r, _ in sc], "^:", color=C_IO, label="I/O")
-    a1.set_xscale("log", base=2)
-    a1.set_xticks(ps, [str(p) for p in ps])
-    a1.set_xlabel("number of MPI processes")
-    a1.set_ylabel("time (s)")
-    a1.set_title("Execution time")
-    a1.grid(alpha=0.3)
-    a1.legend(fontsize=8)
+    stacked_profile(a1, [r for _, r, _ in sc],
+                    [f"{p}\n({int(r['nodes'])} node{'s' if r['nodes'] > 1 else ''})" for p, r, _ in sc])
+    a1.set_xlabel("number of MPI processes (big partition)")
+    a1.set_title("Time profile")
     a2.plot(ps, ps, "k--", alpha=0.5, label="ideal")
     a2.plot(ps, [base / r["total_s"] for _, r, _ in sc], "o-", color=C_COMP, label="total speedup")
     a2.plot(ps, [base_c / r["compute_s"] for _, r, _ in sc], "s--", color="#8172B3", label="compute-only speedup")
@@ -174,16 +198,18 @@ if len(sc) >= 2 and sc[0][0] == 1:
     a2.set_title("Strong scaling")
     a2.grid(alpha=0.3)
     a2.legend(fontsize=8)
+    footnote(fig, PROFILE_NOTE + " " + SPEEDUP_NOTE.replace(" Median of 5 trials.", ""))
     note = "all runs on shared NFS" if mode == "nfs" else "1-4 procs: node-local /tmp; 8 procs: 2 nodes, shared NFS"
-    fig.suptitle(f"Strong scaling, final version, big cores (case {args.case}; {note})", fontsize=10)
+    fig.suptitle(f"Strong scaling, final version, big partition (case {args.case}, 25 rounds; {note})", fontsize=10)
     save(fig, "fig_scaling.png")
     table(f"Strong scaling of the final version on big cores (case {args.case}; {note}). "
           "Speedup is relative to 1 process; compute-only speedup excludes I/O, communication and synchronization.",
           "tab:scaling",
-          ["Processes", "Nodes", "Active ranks", "Storage", "Total (s)", "I/O (s)", "Compute (s)", "Speedup",
-           "Compute speedup"],
-          [[p, int(r["nodes"]), int(r["busy_ranks"]), "/tmp" if st == "local" else "NFS", f3(r["total_s"]),
-            f3(r["io_s"]), f3(r["compute_s"]), f"{base / r['total_s']:.2f}", f"{base_c / r['compute_s']:.2f}"]
+          ["Processes", "Nodes", "Storage", "Total (s)", "Range (s)", "I/O (s)", "Comm. (s)", "Compute (s)",
+           "Speedup", "Compute speedup"],
+          [[p, int(r["nodes"]), "/tmp" if st == "local" else "NFS", f3(r["total_s"]),
+            f"{r['total_min_s']:.2f}--{r['total_max_s']:.2f}", f3(r["io_s"]), f3(r["comm_s"]), f3(r["compute_s"]),
+            f"{base / r['total_s']:.2f}", f"{base_c / r['compute_s']:.2f}"]
            for p, r, st in sc])
 else:
     skip("strong scaling", f"storage={mode} 沒有包含 1 process 的 final/big 結果")
@@ -199,14 +225,21 @@ if ps:
         ax.bar([x + off for x in xs], [d[p]["compute_s"] for p in ps], w, color=col, label=f"{lab}: compute")
         ax.bar([x + off for x in xs], [d[p]["total_s"] - d[p]["compute_s"] for p in ps], w,
                bottom=[d[p]["compute_s"] for p in ps], color=col, alpha=0.35, label=f"{lab}: I/O + comm + sync")
+        ax.errorbar([x + off for x in xs], [d[p]["total_s"] for p in ps],
+                    yerr=[[d[p]["total_s"] - d[p]["total_min_s"] for p in ps],
+                          [d[p]["total_max_s"] - d[p]["total_s"] for p in ps]],
+                    fmt="none", ecolor="black", capsize=3, linewidth=1)
         for x, p in zip(xs, ps):
-            ax.text(x + off, d[p]["total_s"], f"{d[p]['total_s']:.2f}", ha="center", va="bottom", fontsize=8)
+            ax.text(x + off, d[p]["total_max_s"], f"{d[p]['total_s']:.2f}", ha="center", va="bottom", fontsize=8)
     ax.set_xticks(list(xs), [str(p) for p in ps])
-    ax.set_xlabel("number of MPI processes (1 node)")
+    ax.set_xlabel("number of MPI processes (1 node per partition)")
     ax.set_ylabel("time (s)")
-    ax.set_title(f"Big vs little cores, final version (case {args.case})")
-    ax.legend(fontsize=7, ncol=2)
+    ax.set_title(f"Big vs little partition, final version\n(case {args.case}, 25 rounds, node-local /tmp)", fontsize=10)
+    ax.set_ylim(0, max(max(d[p]["total_max_s"] for p in ps) for d in (b, l)) * 1.35)
+    ax.legend(fontsize=7, ncol=2, loc="upper left")
     ax.grid(axis="y", alpha=0.3)
+    footnote(fig, "Bar = median total of 5 trials (label), error bar = min-max; dark part = computation time, "
+                  "light part = I/O + communication + synchronization.")
     save(fig, "fig_big_vs_little.png")
     table(f"Big versus little cores (final version, case {args.case}, node-local /tmp, seconds).",
           "tab:big-little",
@@ -219,29 +252,42 @@ else:
 
 # ---- 4. mixed ----
 mx = series("local", "final", "mixed", 1, [1, 4, 8])
+
+
+def cpu_set(part):
+    """big / little 實驗中用到的 CPU 編號，用來判斷 mixed 節點上每個 rank 是 big 還是 little core。"""
+    out = set()
+    for (st, v, pt, nodes, p), r in R.items():
+        if pt == part and nodes == 1 and isinstance(r.get("cpus"), str):
+            out |= {int(c) for c in r["cpus"].split()}
+    return out
+
+
+def composition(r):
+    big_cpus, little_cpus = cpu_set("big"), cpu_set("little")
+    cpus = [int(c) for c in str(r.get("cpus", "")).split()] if isinstance(r.get("cpus"), str) else []
+    if not cpus or not big_cpus or not little_cpus:
+        return ""
+    nb = sum(c in big_cpus for c in cpus)
+    nl = sum(c in little_cpus for c in cpus)
+    return f"{nb} big + {nl} little"
+
+
 if mx:
-    fig, ax = plt.subplots(figsize=(6.4, 4))
-    xs = [str(p) for p, _ in mx]
-    bottom = [0.0] * len(mx)
-    for key, lab, col in (("compute_s", "Computation", C_COMP), ("comm_s", "Communication", C_COMM),
-                          ("sync_s", "Synchronization", C_SYNC), ("io_s", "I/O", C_IO)):
-        vals = [r[key] for _, r in mx]
-        ax.bar(xs, vals, bottom=bottom, color=col, label=lab, width=0.6)
-        bottom = [b + v for b, v in zip(bottom, vals)]
-    for i, (_, r) in enumerate(mx):
-        ax.text(i, bottom[i], f"{r['total_s']:.2f} s", ha="center", va="bottom", fontsize=9)
-    ax.set_xlabel("number of MPI processes (mixed partition: 4 big + 4 little cores)")
-    ax.set_ylabel("time (s)")
-    ax.set_title(f"Mixed big/little node, final version (case {args.case})")
-    ax.set_ylim(0, max(bottom) * 1.15)
-    ax.legend(fontsize=8)
-    ax.grid(axis="y", alpha=0.3)
+    fig, ax = plt.subplots(figsize=(6.4, 4.4))
+    stacked_profile(ax, [r for _, r in mx], [f"{p}\n({composition(r)})" if composition(r) else str(p) for p, r in mx])
+    ax.set_xlabel("number of MPI processes (mixed partition, 1 node with 4 big + 4 little cores)")
+    ax.set_title(f"Heterogeneous whole-node run, final version\n(case {args.case}, 25 rounds, node-local /tmp)",
+                 fontsize=10)
+    footnote(fig, PROFILE_NOTE + " Core types per rank are taken from the CPU ids used in the big / little runs.")
     save(fig, "fig_mixed.png")
-    table(f"Mixed partition, final version (case {args.case}, node-local /tmp, seconds). "
-          "Imbalance = max / min compute time among ranks.", "tab:mixed",
-          ["Processes", "Total", "I/O", "Comm.", "Sync.", "Compute", "Imbalance", "Speedup"],
-          [[p, f3(r["total_s"]), f3(r["io_s"]), f3(r["comm_s"]), f3(r["sync_s"]), f3(r["compute_s"]),
-            f"{r['compute_imbalance']:.2f}", f"{r['speedup']:.2f}"] for p, r in mx])
+    table(f"Mixed partition, final version (case {args.case}, node-local /tmp, median of 5 trials, seconds). "
+          "Imbalance = max / min computation time among ranks. This series is not part of the homogeneous "
+          "big-core speedup curve because its core composition changes with the process count.", "tab:mixed",
+          ["Processes", "Cores used", "Total", "Range", "I/O", "Comm.", "Sync.", "Compute", "Imbalance"],
+          [[p, composition(r) or "--", f3(r["total_s"]), f"{r['total_min_s']:.2f}--{r['total_max_s']:.2f}",
+            f3(r["io_s"]), f3(r["comm_s"]), f3(r["sync_s"]), f3(r["compute_s"]),
+            f"{r['compute_imbalance']:.2f}"] for p, r in mx])
 else:
     skip("mixed", "沒有 local 的 mixed 結果")
 
@@ -260,12 +306,21 @@ if pairs:
     ax.bar([x + w / 2 for x in xs], [f["total_s"] for _, _, _, f in pairs], w, color=C_COMP, label="final")
     for x, (_, _, o, f) in zip(xs, pairs):
         ax.text(x, o["total_s"] * 1.1, f"{o['total_s'] / f['total_s']:.1f}x", ha="center", fontsize=8)
+    for x, (_, _, o, f) in zip(xs, pairs):
+        ax.text(x + w / 2, f["total_s"] * 1.05, f"{f['total_s']:.2f}", ha="center", va="bottom", fontsize=7)
+        ax.text(x - w / 2, o["total_s"] * 0.85, f"{o['total_s']:.1f}", ha="center", va="top", fontsize=7,
+                color="white")
     ax.set_yscale("log")
-    ax.set_xticks(list(xs), [f"{part}\np={p}" for part, p, _, _ in pairs])
+    ax.set_yticks([1, 2, 5, 10, 20, 50, 100], ["1", "2", "5", "10", "20", "50", "100"])
+    ax.set_ylim(1, 120)
+    ax.set_xticks(list(xs), [f"{part}\np = {p}" for part, p, _, _ in pairs])
+    ax.set_xlabel("partition and number of MPI processes (1 node)")
     ax.set_ylabel("total time (s, log scale)")
-    ax.set_title(f"Original vs final version (case {args.case}, node-local /tmp)")
-    ax.legend(fontsize=8)
+    ax.set_title(f"Original vs final version\n(case {args.case}, 25 rounds, node-local /tmp)", fontsize=10)
+    ax.legend(fontsize=8, loc="upper right")
     ax.grid(axis="y", alpha=0.3, which="both")
+    footnote(fig, "Median total time of 5 trials. Label above each pair = speedup = T(original) / T(final). "
+                  "Original: std::sort + full-block exchange + full merge.")
     save(fig, "fig_ori_vs_final.png")
     table(f"Original versus final version (case {args.case}, node-local /tmp, seconds).", "tab:ori-final",
           ["Partition", "Processes", "Original total", "Original compute", "Final total", "Final compute",

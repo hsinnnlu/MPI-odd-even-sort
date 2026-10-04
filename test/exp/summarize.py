@@ -73,6 +73,7 @@ for path in glob.glob(os.path.join(res_dir, "*.csv")):
 
 per_cfg = defaultdict(lambda: defaultdict(list))
 mapping = {}
+cpu_list = {}                              # 設定 -> 第 1 次執行時各 rank（依 rank 順序）所在的 CPU 編號
 for (case, ver, part, nodes, p, store, trial), ranks in prof.items():
     busy = [r for r in ranks if r["calls"] > 0] or ranks
     cfg = (case, ver, part, nodes, p, store)
@@ -92,6 +93,7 @@ for (case, ver, part, nodes, p, store, trial), ranks in prof.items():
                                     for q in (r["rank"] - 1, r["rank"] + 1))]
     d["edge_MB"].append(sum(r["MB"] for r in edge))
     if trial == 1:
+        cpu_list[cfg] = " ".join(str(r["cpu"]) for r in sorted(ranks, key=lambda r: r["rank"]))
         mapping[cfg] = " ".join(f"r{r['rank']}:{r['host'].split('.')[0]}/cpu{r['cpu']}"
                                 for r in sorted(ranks, key=lambda r: r["rank"]))
 
@@ -129,13 +131,15 @@ for c in cfgs:
           f"{m['read']:7.3f}{m['write']:7.3f}{m['comm']:7.3f}{m['sync']:7.3f}{m['compute']:8.3f} | "
           f"{sp:6.2f}{'*' if borrowed else ' '}{m['imbalance']:6.2f}{m['MB']:8.0f}{m['bw']:8.0f}{wmed:7.2f}{ok:>6}{len(per_cfg[c]['total']):>3}")
     rows.append({"case": c[0], "storage": c[5], "version": c[1], "partition": c[2], "nodes": c[3], "procs": c[4],
-                 "busy_ranks": int(m["busy"]), "total_s": round(m["total"], 4), "io_s": round(m["io"], 4),
+                 "busy_ranks": int(m["busy"]), "total_s": round(m["total"], 4),
+                 "total_min_s": round(min(per_cfg[c]["total"]), 4), "total_max_s": round(max(per_cfg[c]["total"]), 4), "io_s": round(m["io"], 4),
                  "io_read_s": round(m["read"], 4), "io_write_s": round(m["write"], 4),
                  "comm_s": round(m["comm"], 4), "sync_s": round(m["sync"], 4), "compute_s": round(m["compute"], 4),
                  "speedup": round(sp, 3), "speedup_base": ("local" if borrowed else c[5]),
                  "compute_imbalance": round(m["imbalance"], 3),
                  "sendrecv_MB": round(m["MB"]), "node_edge_MB": round(m["edge_MB"]) if "edge_MB" in m else 0, "comm_bw_MBps": round(m["bw"]) if m["bw"] == m["bw"] else "",
-                 "wall_s": round(wmed, 3), "correct": ok, "trials": len(per_cfg[c]["total"])})
+                 "wall_s": round(wmed, 3), "correct": ok, "trials": len(per_cfg[c]["total"]),
+                 "cpus": cpu_list.get(c, "")})
 
 missing = sorted(set(wall) - set(med), key=lambda c: (c[0], c[5], order.get(c[1], 9), part_order.get(c[2], 9), c[3], c[4]))
 if missing:

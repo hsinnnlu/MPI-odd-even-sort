@@ -2,15 +2,15 @@
 
 \begin{table}[htbp]
 \centering
-\caption{Time profile of the final version on big cores (case 10, median of 5 trials, seconds).}
+\caption{Time profile of the final version on big cores (case 10, node-local /tmp, median of 5 trials, seconds). Range = min--max of the total time over the 5 trials.}
 \label{tab:breakdown}
-\begin{tabular}{lrrrrrr}
+\begin{tabular}{lrrrrrrr}
 \toprule
-Processes & Total & I/O (read / write) & Comm. & Sync. & Compute & Speedup \\
+Processes & Total & Range & I/O (read / write) & Comm. & Sync. & Compute & Speedup \\
 \midrule
-1 & 1.802 & 0.013 (0.005 / 0.007) & 0.000 & 0.000 & 1.789 & 1.00 \\
-2 & 1.646 & 0.013 (0.004 / 0.006) & 0.167 & 0.001 & 1.464 & 1.09 \\
-4 & 1.981 & 0.039 (0.014 / 0.017) & 0.482 & 0.075 & 1.385 & 0.91 \\
+1 & 1.802 & 1.79--1.82 & 0.013 (0.005 / 0.007) & 0.000 & 0.000 & 1.789 & 1.00 \\
+2 & 1.646 & 1.63--1.67 & 0.013 (0.004 / 0.006) & 0.167 & 0.001 & 1.464 & 1.09 \\
+4 & 1.981 & 1.98--2.00 & 0.039 (0.014 / 0.017) & 0.482 & 0.075 & 1.385 & 0.91 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -19,14 +19,14 @@ Processes & Total & I/O (read / write) & Comm. & Sync. & Compute & Speedup \\
 \centering
 \caption{Strong scaling of the final version on big cores (case 10; all runs on shared NFS). Speedup is relative to 1 process; compute-only speedup excludes I/O, communication and synchronization.}
 \label{tab:scaling}
-\begin{tabular}{lrrrrrrrr}
+\begin{tabular}{lrrrrrrrrr}
 \toprule
-Processes & Nodes & Active ranks & Storage & Total (s) & I/O (s) & Compute (s) & Speedup & Compute speedup \\
+Processes & Nodes & Storage & Total (s) & Range (s) & I/O (s) & Comm. (s) & Compute (s) & Speedup & Compute speedup \\
 \midrule
-1 & 1 & 1 & NFS & 3.298 & 1.510 & 1.796 & 1.00 & 1.00 \\
-2 & 1 & 2 & NFS & 3.279 & 1.675 & 1.467 & 1.01 & 1.22 \\
-4 & 1 & 4 & NFS & 3.570 & 1.625 & 1.382 & 0.92 & 1.30 \\
-8 & 2 & 8 & NFS & 5.764 & 2.704 & 1.138 & 0.57 & 1.58 \\
+1 & 1 & NFS & 3.298 & 2.99--3.64 & 1.510 & 0.000 & 1.796 & 1.00 & 1.00 \\
+2 & 1 & NFS & 3.279 & 2.99--3.41 & 1.675 & 0.157 & 1.467 & 1.01 & 1.22 \\
+4 & 1 & NFS & 3.570 & 3.25--3.75 & 1.625 & 0.495 & 1.382 & 0.92 & 1.30 \\
+8 & 2 & NFS & 5.764 & 4.98--6.96 & 2.704 & 1.893 & 1.138 & 0.57 & 1.58 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -48,15 +48,15 @@ Processes & Big total & Big compute & Little total & Little compute & Little / b
 
 \begin{table}[htbp]
 \centering
-\caption{Mixed partition, final version (case 10, node-local /tmp, seconds). Imbalance = max / min compute time among ranks.}
+\caption{Mixed partition, final version (case 10, node-local /tmp, median of 5 trials, seconds). Imbalance = max / min computation time among ranks. This series is not part of the homogeneous big-core speedup curve because its core composition changes with the process count.}
 \label{tab:mixed}
-\begin{tabular}{lrrrrrrr}
+\begin{tabular}{lrrrrrrrr}
 \toprule
-Processes & Total & I/O & Comm. & Sync. & Compute & Imbalance & Speedup \\
+Processes & Cores used & Total & Range & I/O & Comm. & Sync. & Compute & Imbalance \\
 \midrule
-1 & 1.792 & 0.015 & 0.000 & 0.000 & 1.777 & 1.00 & 1.00 \\
-4 & 2.302 & 0.042 & 0.609 & 0.170 & 1.483 & 1.91 & 0.78 \\
-8 & 2.379 & 0.043 & 0.802 & 0.096 & 1.430 & 1.87 & 0.75 \\
+1 & 1 big + 0 little & 1.792 & 1.78--1.80 & 0.015 & 0.000 & 0.000 & 1.777 & 1.00 \\
+4 & 2 big + 2 little & 2.302 & 2.28--2.34 & 0.042 & 0.609 & 0.170 & 1.483 & 1.91 \\
+8 & 4 big + 4 little & 2.379 & 2.36--2.40 & 0.043 & 0.802 & 0.096 & 1.430 & 1.87 \\
 \bottomrule
 \end{tabular}
 \end{table}
