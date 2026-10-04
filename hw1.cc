@@ -10,7 +10,7 @@
 //   3. 每一輪：
 //        a. local LSD radix sort
 //             round 0：32-bit key，11 + 11 + 10 bit 三個 pass
-//             之後  ：hash 輸出只有 24 bit，12 + 12 bit 兩個 pass
+//             之後  ：hash 輸出只有 24 bit，8 + 8 + 8 bit 三個 pass
 //        b. odd-even phases，每次 compare-split 只交換「可能需要移動」的元素
 //   4. 每輪結束（最後一輪除外）都做 hash，最後寫檔。
 //
@@ -74,9 +74,12 @@ static inline float hash_key_to_float(Key key) {
     return static_cast<float>(static_cast<int32_t>(key) - HASH_OFFSET);
 }
 
-// ---- 24-bit key 的 radix sort：12 + 12 bit 兩個 pass ----------------------
-constexpr int DIGIT_BITS_24 = 12;
-constexpr int RADIX_24 = 1 << DIGIT_BITS_24;     // 每個 pass 4096 個桶
+// ---- 24-bit key 的 radix sort：8 + 8 + 8 bit 三個 pass ---------------------
+// 在課程機器上實測（test/opt/run_opt.sh [4]），每個 pass 256 個桶比 12 + 12 bit
+// （4096 個桶）快：寫入位置少，256 個寫入位置都能留在 cache 裡。
+constexpr int DIGIT_BITS_24 = 8;
+constexpr int PASSES_24 = 3;
+constexpr int RADIX_24 = 1 << DIGIT_BITS_24;     // 每個 pass 256 個桶
 constexpr Key DIGIT_MASK_24 = RADIX_24 - 1;
 
 // =============================================================================
@@ -258,20 +261,26 @@ static void radix_sort_32(std::vector<Key>& keys, std::vector<Key>& tmp) {
     }
 }
 
-// Round 1 之後：hash 輸出的 24-bit key，12 + 12 bit 兩個 pass。
-// histogram 已經在 hash_and_count 裡算好：hist[0..4095] 是低 12 bit，hist[4096..8191] 是高 12 bit。
+// Round 1 之後：hash 輸出的 24-bit key，8 + 8 + 8 bit 三個 pass。
+// histogram 已經在 hash_and_count 裡算好：hist[p * 256 + d] = 第 p 個 pass（由低位開始）digit 為 d 的數量。
 static void radix_sort_24(Workspace& ws) {
     if (ws.keys.size() <= 1) return;
-    uint32_t* pos_low = ws.hist.data();
-    uint32_t* pos_high = ws.hist.data() + RADIX_24;
-    uint32_t sum_low = 0, sum_high = 0;
-    for (int d = 0; d < RADIX_24; ++d) {
-        const uint32_t c_low = pos_low[d], c_high = pos_high[d];
-        pos_low[d] = sum_low;   sum_low += c_low;
-        pos_high[d] = sum_high; sum_high += c_high;
+
+    // histogram → 每個 digit 的起始位置（exclusive prefix sum）
+    for (int p = 0; p < PASSES_24; ++p) {
+        uint32_t sum = 0;
+        for (int d = 0; d < RADIX_24; ++d) {
+            const uint32_t c = ws.hist[p * RADIX_24 + d];
+            ws.hist[p * RADIX_24 + d] = sum;
+            sum += c;
+        }
     }
-    for (Key k : ws.keys) ws.tmp[pos_low[k & DIGIT_MASK_24]++] = k;                    // 依低 12 bit
-    for (Key k : ws.tmp)  ws.keys[pos_high[(k >> DIGIT_BITS_24) & DIGIT_MASK_24]++] = k;  // 依高 12 bit
+    for (int p = 0; p < PASSES_24; ++p) {
+        uint32_t* pos = ws.hist.data() + p * RADIX_24;
+        const int shift = p * DIGIT_BITS_24;
+        for (Key k : ws.keys) ws.tmp[pos[(k >> shift) & DIGIT_MASK_24]++] = k;
+        ws.keys.swap(ws.tmp);   // 每個 pass 結束後，結果都放回 keys
+    }
 }
 
 // 合併兩個已排序陣列 a、b，輸出最小的 count 個到 out。
@@ -447,6 +456,7 @@ VECTORIZE_CLONES static void hash_and_count(Workspace& ws, uint32_t global_start
         for (size_t i = begin; i < end; ++i) {
             ++ws.hist[keys[i] & DIGIT_MASK_24];
             ++ws.hist[RADIX_24 + ((keys[i] >> DIGIT_BITS_24) & DIGIT_MASK_24)];
+            ++ws.hist[2 * RADIX_24 + ((keys[i] >> (2 * DIGIT_BITS_24)) & DIGIT_MASK_24)];
         }
     }
 }
@@ -477,7 +487,7 @@ int main(int argc, char** argv) {
     ws.keys.resize(L.local_n);
     ws.tmp.resize(L.local_n);
     ws.recv.resize(std::max(L.max_count, 1));
-    ws.hist.resize(2 * RADIX_24);
+    ws.hist.resize(PASSES_24 * RADIX_24);
 
     // 左右鄰居是否在別台節點：是的話，和它交換資料時要壓縮
     const bool remote_left = rank > 0 && L.node[rank - 1] != L.node[rank];

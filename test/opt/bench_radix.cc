@@ -14,10 +14,10 @@
 //
 // 第四個參數 = hash 時，改測 round 1 之後的情況（hash 輸出是 24-bit 整數）。
 // 計時包含 hash 本身，因為繳交版把 radix sort 的 histogram 合併在 hash 的迴圈裡：
-//   hash + std::sort                    最初版本的做法
-//   hash + radix 8+8+8                  3 個 pass，每 pass 256 個 bucket
-//   hash + radix 12+12 (separate hist)  hash 完再掃一次資料算 histogram
-//   hash+hist fused + radix 12+12       hash 的同時算好 histogram（hw1.cc 的 hash_and_count + radix_sort_24）
+//   hash + std::sort                       最初版本的做法
+//   hash + radix 12+12 (separate hist)     2 個 pass，每 pass 4096 個 bucket；hash 完再掃一次資料算 histogram
+//   hash + radix 8+8+8 (separate hist)     3 個 pass，每 pass 256 個 bucket；hash 完再掃一次資料算 histogram
+//   hash+hist fused + radix 8+8+8 (final)  hash 的同時算好 histogram（hw1.cc 的 hash_and_count + radix_sort_24）
 //
 // 編譯：mpicxx -O3 -I. -o test/opt/bench_radix test/opt/bench_radix.cc
 // 執行：srun -p big -N1 -n1 -c1 ./test/opt/bench_radix /tmp/.../10.in 23987513 5 [float|hash]
@@ -82,15 +82,15 @@ static void bench_hash_rounds(const std::vector<Key>& sorted_float_keys, int tri
     struct Variant { std::string name; int kind; };
     const std::vector<Variant> variants = {
         {"hash + std::sort", 0},
-        {"hash + radix 8+8+8", 1},
         {"hash + radix 12+12 (separate hist)", 2},
-        {"hash+hist fused + radix 12+12 (final)", 3},
+        {"hash + radix 8+8+8 (separate hist)", 1},
+        {"hash+hist fused + radix 8+8+8 (final)", 3},
     };
     std::printf("N=%d trials=%d（時間為中位數，含 hash；資料是 hash 之後的 24-bit key）\n", n, trials);
     std::printf("%-40s %10s %10s %8s %s\n", "variant", "ms", "ns/elem", "vs sort", "correct");
     Workspace ws;
     ws.tmp.resize(n);
-    ws.hist.resize(2 * RADIX_24);
+    ws.hist.resize(PASSES_24 * RADIX_24);
     double sort_ms = 0;
     for (const auto& v : variants) {
         std::vector<double> t;
