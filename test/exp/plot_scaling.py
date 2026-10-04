@@ -1,56 +1,118 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+# ============================================================
 # Controlled strong-scaling experiment
 # All configurations use shared NFS.
 #
-# p1, p2, p4: one node
-# p8: two nodes
+# p1, p2, p4 : 1 node
+# p8         : 2 nodes
 #
-# Each value is the median PROF total time over five trials.
+# Each value is the median over five trials.
+# ============================================================
 
 processes = np.array([1, 2, 4, 8])
+labels = ["1", "2", "4", "8"]
 
-times = np.array([
-    4.204430,   # p1
-    3.036093,   # p2
-    2.070070,   # p4
-    3.843641,   # p8
+# Median total PROF time
+total = np.array([
+    4.204430,
+    3.036093,
+    2.070070,
+    3.843641,
 ])
 
-speedup = times[0] / times
-ideal_speedup = processes
+# Time-profile components
+#
+# p1/p2/p4:
+# mean across active sorting ranks for each trial,
+# then median across 5 trials.
+#
+# p8:
+# only ranks 0-3 are active sorting ranks in the final version,
+# so the component values use those active ranks.
+
+io_time = np.array([
+    2.247809,
+    1.800734,
+    0.975388,
+    2.738277,
+])
+
+comm_time = np.array([
+    0.000000,
+    0.080862,
+    0.266825,
+    0.265309,
+])
+
+sync_time = np.array([
+    0.000003,
+    0.000464,
+    0.014630,
+    0.019702,
+])
+
+compute_time = np.array([
+    1.956618,
+    1.154036,
+    0.817273,
+    0.826274,
+])
 
 
 # ============================================================
-# Figure 1: Execution Time
+# Figure 1: Strong Scaling Time Profile
 # ============================================================
 
-plt.figure(figsize=(7, 5))
+x = np.arange(len(processes))
 
-plt.plot(
-    processes,
-    times,
-    marker="o",
-    linewidth=2
+plt.figure(figsize=(8, 5))
+
+plt.bar(
+    x,
+    compute_time,
+    label="Computation"
 )
 
-for x, y in zip(processes, times):
+plt.bar(
+    x,
+    comm_time,
+    bottom=compute_time,
+    label="Communication"
+)
+
+plt.bar(
+    x,
+    sync_time,
+    bottom=compute_time + comm_time,
+    label="Synchronization"
+)
+
+plt.bar(
+    x,
+    io_time,
+    bottom=compute_time + comm_time + sync_time,
+    label="I/O"
+)
+
+for i, t in enumerate(total):
     plt.text(
-        x,
-        y + 0.08,
-        f"{y:.3f}",
+        x[i],
+        t + 0.08,
+        f"{t:.3f}",
         ha="center",
         va="bottom"
     )
 
-plt.xticks(processes)
+plt.xticks(x, labels)
 
 plt.xlabel("Number of MPI Processes")
-plt.ylabel("Execution Time (s)")
-plt.title("Strong Scaling on Big Cores")
+plt.ylabel("Time (s)")
+plt.title("Strong Scaling Time Profile on Big Cores")
 
-plt.grid(alpha=0.3)
+plt.legend()
+plt.grid(axis="y", alpha=0.3)
 
 plt.tight_layout()
 
@@ -64,8 +126,11 @@ plt.close()
 
 
 # ============================================================
-# Figure 2: Speedup
+# Figure 2: Strong Scaling Speedup
 # ============================================================
+
+speedup = total[0] / total
+ideal_speedup = processes
 
 plt.figure(figsize=(7, 5))
 
@@ -85,11 +150,11 @@ plt.plot(
     label="Ideal Speedup"
 )
 
-for x, y in zip(processes, speedup):
+for x_value, y_value in zip(processes, speedup):
     plt.text(
-        x,
-        y + 0.15,
-        f"{y:.2f}x",
+        x_value,
+        y_value + 0.15,
+        f"{y_value:.2f}x",
         ha="center",
         va="bottom"
     )
@@ -112,7 +177,6 @@ plt.savefig(
 )
 
 plt.close()
-
 
 print("Saved:")
 print("  test/exp/results/strong_scaling_big.png")
