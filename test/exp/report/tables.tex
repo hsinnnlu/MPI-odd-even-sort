@@ -51,6 +51,24 @@ little & 4 & 2.504 & 1.734 & 0.620 & 0.105 & 0.042 & 1.26 \\
 
 \begin{table}[htbp]
 \centering
+\caption{Single-node strong scaling on the big and little partitions (final version, case 10, node-local /tmp, median of 5 trials). Efficiency = speedup / processes.}
+\label{tab:scaling-big-little}
+\begin{tabular}{lrrrrrrrrr}
+\toprule
+Partition & Processes & Total (s) & Compute (s) & Comm. (s) & Sync. (s) & I/O (s) & Speedup & Efficiency & Compute speedup \\
+\midrule
+big & 1 & 1.802 & 1.789 & 0.000 & 0.000 & 0.013 & 1.00 & 100\% & 1.00 \\
+big & 2 & 1.646 & 1.464 & 0.167 & 0.001 & 0.013 & 1.09 & 55\% & 1.22 \\
+big & 4 & 1.981 & 1.385 & 0.482 & 0.075 & 0.039 & 0.91 & 23\% & 1.29 \\
+little & 1 & 2.455 & 2.441 & 0.000 & 0.000 & 0.014 & 1.00 & 100\% & 1.00 \\
+little & 2 & 2.133 & 1.954 & 0.162 & 0.001 & 0.014 & 1.15 & 58\% & 1.25 \\
+little & 4 & 2.504 & 1.734 & 0.620 & 0.105 & 0.042 & 0.98 & 25\% & 1.41 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
 \caption{Mixed partition, final version (case 10, node-local /tmp, median of 5 trials, seconds). Imbalance = max / min computation time among ranks. This series is not part of the homogeneous big-core speedup curve because its core composition changes with the process count.}
 \label{tab:mixed}
 \begin{tabular}{lrrrrrrrr}
