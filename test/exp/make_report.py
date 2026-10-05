@@ -13,7 +13,7 @@
   fig_breakdown_big.png      final、big、1/2/4 process 的時間組成堆疊圖（I/O / Comm / Sync / Compute）
   fig_scaling.png            strong scaling：總時間與 speedup（含 compute-only speedup、理想線）
   fig_big_vs_little.png      big 與 little 的總時間比較
-  fig_scaling_big_little.png 單節點 strong scaling：big 與 little 的 speedup 與各項時間
+  fig_scaling_big_little.png 單節點 strong scaling：big 與 little 的 speedup
   fig_mixed.png              mixed 1/4/8 的時間組成（big + little 混合節點）
   fig_ori_vs_final.png       最初版本 vs final（對數座標，標出加速倍數）
   fig_compression.png        2 節點：跨節點壓縮開 / 關（final vs final_nocomp）的時間組成與傳送量
@@ -260,7 +260,7 @@ else:
 
 # ---- 3b. 單節點 strong scaling：big vs little ----
 if ps and 1 in ps:
-    fig, (a1, a2) = plt.subplots(1, 2, figsize=(11, 4.6))
+    fig, a1 = plt.subplots(figsize=(6.4, 4.6))
     styles = (("big", b, "-", "o"), ("little", l, "--", "s"))
     a1.plot(ps, ps, color="black", linestyle=":", alpha=0.6, label="ideal")
     for part, d, ls, mk in styles:
@@ -272,24 +272,12 @@ if ps and 1 in ps:
     a1.set_xticks(ps, [str(p) for p in ps])
     a1.set_xlabel("number of MPI processes (1 node)")
     a1.set_ylabel("speedup over 1 process of the same partition")
-    a1.set_title("Speedup")
     a1.grid(alpha=0.3)
     a1.legend(fontsize=7, loc="upper left")
-    for part, d, ls, mk in styles:
-        for key, lab, col in COMPONENTS:
-            a2.plot(ps, [d[p][key] for p in ps], ls, marker=mk, color=col,
-                    label=f"{part}: {lab}")
-    a2.set_xscale("log", base=2)
-    a2.set_xticks(ps, [str(p) for p in ps])
-    a2.set_xlabel("number of MPI processes (1 node)")
-    a2.set_ylabel("time (s)")
-    a2.set_title("Time profile per component")
-    a2.grid(alpha=0.3)
-    a2.legend(fontsize=6.5, ncol=2, loc="upper left")
-    a2.set_ylim(0, max(d[p]["compute_s"] for _, d, _, _ in styles for p in ps) * 1.45)
-    fig.suptitle(f"Single-node strong scaling, big vs little partition, final version "
-                 f"(case {args.case}, 25 rounds, node-local /tmp)", fontsize=10)
-    footnote(fig, PROFILE_NOTE + " Speedup(p) = T(1) / T(p) within the same partition (solid = big, dashed = little).")
+    a1.set_title(f"Single-node strong scaling, big vs little partition\n"
+                 f"(final version, case {args.case}, 25 rounds, node-local /tmp)", fontsize=10)
+    footnote(fig, "Median of 5 trials. Speedup(p) = T(1) / T(p) within the same partition (solid = big, dashed = "
+                  "little); compute-only speedup uses computation time = Total - I/O - Comm. - Sync.")
     save(fig, "fig_scaling_big_little.png")
     table(f"Single-node strong scaling on the big and little partitions (final version, case {args.case}, node-local "
           "/tmp, median of 5 trials). Efficiency = speedup / processes.", "tab:scaling-big-little",
