@@ -19,7 +19,6 @@
   fig_opt_radix.png          Optimization 1：round 0 的 local sort 各做法時間
   fig_opt_radix24.png        Optimization 1：hash 之後（24-bit key）的 hash + local sort 各做法時間
   fig_opt_split.png          Optimization 2：compare-split 四種做法的時間與傳送量
-  fig_opt_active.png         Optimization 3：小 N 時每 rank 至少 4096 筆的效果
   tables.tex                 以上全部的 LaTeX 表格（booktabs；\\usepackage{booktabs}）
   （某項資料不存在時跳過那張圖/表並印出原因）
 
@@ -31,6 +30,7 @@
       auto   nfs 有 1/2/4/8 就用 nfs，否則用 local
 """
 import argparse
+from collections import defaultdict
 import csv
 import glob
 import os
@@ -57,10 +57,10 @@ C_IO, C_COMM, C_SYNC, C_COMP = "#8C8C8C", "#DD8452", "#55A868", "#4C72B0"
 tex = ["% 由 test/exp/make_report.py 自動產生；需要 \\usepackage{booktabs}", ""]
 
 
-def save(fig, name):
+def save(fig, name, top=1.0):
     path = os.path.join(args.out, name)
-    # 有 footnote（fig.text）時，留出底部空間，避免和 x 軸標籤重疊
-    fig.tight_layout(rect=(0, 0.08, 1, 1) if fig.texts else None)
+    # 有 footnote（fig.text）時，留出底部空間，避免和 x 軸標籤重疊；top < 1 時上方留給整張圖共用的圖例
+    fig.tight_layout(rect=(0, 0.08 if fig.texts else 0, 1, top))
     fig.savefig(path, dpi=200)
     plt.close(fig)
     print(f"  圖：{path}")
@@ -74,6 +74,10 @@ def table(caption, label, header, rows, align=None):
     tex.extend(" & ".join(str(x) for x in r) + " \\\\" for r in rows)
     tex.extend(["\\bottomrule", "\\end{tabular}", "\\end{table}", ""])
     print(f"  表：{label}")
+
+
+COMPONENTS = (("compute_s", "Computation", C_COMP), ("comm_s", "Communication", C_COMM),
+              ("sync_s", "Synchronization", C_SYNC), ("io_s", "I/O", C_IO))
 
 
 # 圖下方的共同註解：定義衍生指標，讓每張圖單獨看也看得懂
@@ -107,7 +111,7 @@ def stacked_profile(ax, rows, xlabels, err=True):
         ax.text(x, max(t, h), f"{r['total_s']:.2f} s", ha="center", va="bottom", fontsize=8)
     ax.set_xticks(xs, xlabels)
     ax.set_ylabel("time (s)")
-    ax.set_ylim(0, max(max(bottom), max(tops)) * 1.25)
+    ax.set_ylim(0, max(max(bottom), max(tops)) * 1.4)
     ax.grid(axis="y", alpha=0.3)
     ax.legend(fontsize=7, loc="upper left", ncol=2)
 
@@ -218,35 +222,38 @@ else:
 b, l = dict(series("local", "final", "big", 1, [1, 2, 4])), dict(series("local", "final", "little", 1, [1, 2, 4]))
 ps = sorted(set(b) & set(l))
 if ps:
-    fig, ax = plt.subplots(figsize=(6.4, 4))
+    fig, ax = plt.subplots(figsize=(7.2, 4.6))
     w = 0.38
-    xs = range(len(ps))
-    for off, d, lab, col in ((-w / 2, b, "big", C_COMP), (w / 2, l, "little", "#DD8452")):
-        ax.bar([x + off for x in xs], [d[p]["compute_s"] for p in ps], w, color=col, label=f"{lab}: compute")
-        ax.bar([x + off for x in xs], [d[p]["total_s"] - d[p]["compute_s"] for p in ps], w,
-               bottom=[d[p]["compute_s"] for p in ps], color=col, alpha=0.35, label=f"{lab}: I/O + comm + sync")
+    xs = list(range(len(ps)))
+    for off, d, part, hatch in ((-w / 2, b, "big", None), (w / 2, l, "little", "//")):
+        bottom = [0.0] * len(ps)
+        for key, lab, col in COMPONENTS:
+            vals = [d[p][key] for p in ps]
+            ax.bar([x + off for x in xs], vals, w, bottom=bottom, color=col, hatch=hatch, edgecolor="white",
+                   linewidth=0.5, label=lab if part == "big" else None)
+            bottom = [bb + v for bb, v in zip(bottom, vals)]
         ax.errorbar([x + off for x in xs], [d[p]["total_s"] for p in ps],
                     yerr=[[d[p]["total_s"] - d[p]["total_min_s"] for p in ps],
                           [d[p]["total_max_s"] - d[p]["total_s"] for p in ps]],
                     fmt="none", ecolor="black", capsize=3, linewidth=1)
-        for x, p in zip(xs, ps):
-            ax.text(x + off, d[p]["total_max_s"], f"{d[p]['total_s']:.2f}", ha="center", va="bottom", fontsize=8)
-    ax.set_xticks(list(xs), [str(p) for p in ps])
-    ax.set_xlabel("number of MPI processes (1 node per partition)")
+        for x, p, h in zip(xs, ps, bottom):
+            ax.text(x + off, max(h, d[p]["total_max_s"]), f"{part}\n{d[p]['total_s']:.2f} s", ha="center",
+                    va="bottom", fontsize=7)
+    ax.set_xticks(xs, [str(p) for p in ps])
+    ax.set_xlabel("number of MPI processes (1 node; left bar = big partition, right hatched bar = little partition)")
     ax.set_ylabel("time (s)")
     ax.set_title(f"Big vs little partition, final version\n(case {args.case}, 25 rounds, node-local /tmp)", fontsize=10)
-    ax.set_ylim(0, max(max(d[p]["total_max_s"] for p in ps) for d in (b, l)) * 1.35)
-    ax.legend(fontsize=7, ncol=2, loc="upper left")
+    ax.set_ylim(0, max(max(d[p]["total_max_s"] for p in ps) for d in (b, l)) * 1.4)
+    ax.legend(fontsize=7, ncol=4, loc="upper left")
     ax.grid(axis="y", alpha=0.3)
-    footnote(fig, "Bar = median total of 5 trials (label), error bar = min-max; dark part = computation time, "
-                  "light part = I/O + communication + synchronization.")
+    footnote(fig, PROFILE_NOTE + " Error bar = min-max total of 5 trials.")
     save(fig, "fig_big_vs_little.png")
-    table(f"Big versus little cores (final version, case {args.case}, node-local /tmp, seconds).",
-          "tab:big-little",
-          ["Processes", "Big total", "Big compute", "Little total", "Little compute", "Little / big (total)",
-           "Little / big (compute)"],
-          [[p, f3(b[p]["total_s"]), f3(b[p]["compute_s"]), f3(l[p]["total_s"]), f3(l[p]["compute_s"]),
-            f"{l[p]['total_s'] / b[p]['total_s']:.2f}", f"{l[p]['compute_s'] / b[p]['compute_s']:.2f}"] for p in ps])
+    table(f"Big versus little partition, final version (case {args.case}, node-local /tmp, median of 5 trials, "
+          "seconds).", "tab:big-little",
+          ["Partition", "Processes", "Total", "Compute", "Comm.", "Sync.", "I/O", "Little / big (total)"],
+          [[part, p, f3(d[p]["total_s"]), f3(d[p]["compute_s"]), f3(d[p]["comm_s"]), f3(d[p]["sync_s"]),
+            f3(d[p]["io_s"]), f"{l[p]['total_s'] / b[p]['total_s']:.2f}" if part == "little" else "--"]
+           for p in ps for part, d in (("big", b), ("little", l))], "lrrrrrrr")
 else:
     skip("big vs little", "缺少 local 的 big 或 little 結果")
 
@@ -299,34 +306,28 @@ for part in ("big", "little"):
         if o and f:
             pairs.append((part, p, o, f))
 if pairs:
-    fig, ax = plt.subplots(figsize=(7.5, 4.2))
-    w = 0.38
-    xs = range(len(pairs))
-    ax.bar([x - w / 2 for x in xs], [o["total_s"] for _, _, o, _ in pairs], w, color="#8C8C8C", label="original")
-    ax.bar([x + w / 2 for x in xs], [f["total_s"] for _, _, _, f in pairs], w, color=C_COMP, label="final")
-    for x, (_, _, o, f) in zip(xs, pairs):
-        ax.text(x, o["total_s"] * 1.1, f"{o['total_s'] / f['total_s']:.1f}x", ha="center", fontsize=8)
-    for x, (_, _, o, f) in zip(xs, pairs):
-        ax.text(x + w / 2, f["total_s"] * 1.05, f"{f['total_s']:.2f}", ha="center", va="bottom", fontsize=7)
-        ax.text(x - w / 2, o["total_s"] * 0.85, f"{o['total_s']:.1f}", ha="center", va="top", fontsize=7,
-                color="white")
-    ax.set_yscale("log")
-    ax.set_yticks([1, 2, 5, 10, 20, 50, 100], ["1", "2", "5", "10", "20", "50", "100"])
-    ax.set_ylim(1, 120)
-    ax.set_xticks(list(xs), [f"{part}\np = {p}" for part, p, _, _ in pairs])
-    ax.set_xlabel("partition and number of MPI processes (1 node)")
-    ax.set_ylabel("total time (s, log scale)")
-    ax.set_title(f"Original vs final version\n(case {args.case}, 25 rounds, node-local /tmp)", fontsize=10)
-    ax.legend(fontsize=8, loc="upper right")
-    ax.grid(axis="y", alpha=0.3, which="both")
-    footnote(fig, "Median total time of 5 trials. Label above each pair = speedup = T(original) / T(final). "
-                  "Original: std::sort + full-block exchange + full merge.")
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.6))
+    labels = [f"{part}\np = {p}" for part, p, _, _ in pairs]
+    for ax, idx, name in ((axes[0], 2, "Original version"), (axes[1], 3, "Final version")):
+        stacked_profile(ax, [pr[idx] for pr in pairs], labels)
+        ax.set_title(name)
+        ax.set_xlabel("partition and number of MPI processes (1 node)")
+    for x, (_, _, o, f) in enumerate(pairs):
+        axes[1].text(x, f["total_s"] * 0.5, f"{o['total_s'] / f['total_s']:.1f}x\nfaster", ha="center",
+                     va="center", fontsize=7, color="white")
+    fig.suptitle(f"Original vs final version (case {args.case}, 25 rounds, node-local /tmp; note different y scales)",
+                 fontsize=10)
+    footnote(fig, PROFILE_NOTE + " Original: std::sort + full-block exchange + full merge. "
+                  "Label in the right panel = T(original) / T(final).")
     save(fig, "fig_ori_vs_final.png")
-    table(f"Original versus final version (case {args.case}, node-local /tmp, seconds).", "tab:ori-final",
-          ["Partition", "Processes", "Original total", "Original compute", "Final total", "Final compute",
-           "Speedup"],
-          [[part, p, f3(o["total_s"]), f3(o["compute_s"]), f3(f["total_s"]), f3(f["compute_s"]),
-            f"{o['total_s'] / f['total_s']:.1f}$\\times$"] for part, p, o, f in pairs])
+    table(f"Original versus final version (case {args.case}, node-local /tmp, median of 5 trials, seconds).",
+          "tab:ori-final",
+          ["Partition", "Processes", "Version", "Total", "Compute", "Comm.", "Sync.", "I/O", "Sendrecv calls / rank",
+           "Sent (MB)", "Speedup"],
+          [[part, p, name, f3(r["total_s"]), f3(r["compute_s"]), f3(r["comm_s"]), f3(r["sync_s"]), f3(r["io_s"]),
+            f"{r.get('sendrecv_calls_per_rank', 0):.0f}", f"{r['sendrecv_MB']:.0f}",
+            "1.0" if name == "original" else f"{o['total_s'] / f['total_s']:.1f}$\\times$"]
+           for part, p, o, f in pairs for name, r in (("original", o), ("final", f))], "lrlrrrrrrrr")
 else:
     skip("ori vs final", "缺少 local 的 ori 或 final 結果")
 
@@ -389,6 +390,138 @@ if comp:
 else:
     skip("跨節點壓縮", "沒有 2 節點的 final 與 final_nocomp 結果（submit_all.sh 的 big2n、mixed2n）")
 
+# ---- 8. 每個 rank 的時間組成：誰在等誰、負載是否平衡 ----
+pr_path = os.path.join(os.path.dirname(args.summary), "per_rank.csv")
+PR = defaultdict(list)
+if os.path.exists(pr_path):
+    for r in csv.DictReader(open(pr_path)):
+        if r["case"] != args.case:
+            continue
+        key = (r["storage"], r["version"], r["partition"], int(r["nodes"]), int(r["procs"]))
+        PR[key].append({k: (float(v) if k.endswith("_s") or k in ("sendrecv_MB", "sendrecv_calls") else v)
+                        for k, v in r.items()})
+cases_pr = [(("local", "final", "big", 1, 4), "big, 4 processes, 1 node (/tmp)"),
+            (("local", "final", "mixed", 1, 8), "mixed, 8 processes, 1 node (/tmp)"),
+            (("nfs", "final", "big", 2, 8), "big, 8 processes, 2 nodes (NFS)"),
+            (("nfs", "final", "mixed", 2, 16), "mixed, 16 processes, 2 nodes (NFS)")]
+cases_pr = [(k, t) for k, t in cases_pr if k in PR]
+if cases_pr:
+    big_cpus, little_cpus = cpu_set("big"), cpu_set("little")
+    fig, axes = plt.subplots(len(cases_pr), 1, figsize=(10, 2.6 * len(cases_pr) + 0.8), squeeze=False)
+    rows_tex = []
+    for ax, (key, title) in zip(axes[:, 0], cases_pr):
+        rs = sorted(PR[key], key=lambda r: int(r["rank"]))
+        xs = list(range(len(rs)))
+        bottom = [0.0] * len(rs)
+        for k, lab, col in COMPONENTS:
+            vals = [r[k] for r in rs]
+            ax.bar(xs, vals, bottom=bottom, color=col, label=lab, width=0.7)
+            bottom = [bb + v for bb, v in zip(bottom, vals)]
+
+        def core(r):
+            c = int(r["cpu"])
+            return "B" if c in big_cpus and key[2] == "mixed" else ("L" if c in little_cpus and key[2] == "mixed" else "")
+        hosts = []
+        for r in rs:
+            if r["host"] not in hosts:
+                hosts.append(r["host"])
+        ax.set_xticks(xs, [f"{int(r['rank'])}{core(r)}\nn{hosts.index(r['host'])}" for r in rs], fontsize=7)
+        ax.set_ylabel("time (s)")
+        ax.set_title(title, fontsize=9)
+        ax.grid(axis="y", alpha=0.3)
+        comp = [r["compute_s"] for r in rs]
+        wait = [r["comm_s"] + r["sync_s"] for r in rs]
+        rows_tex.append([title.replace("/tmp", "\\texttt{/tmp}"), f"{min(comp):.3f}", f"{max(comp):.3f}",
+                         f"{max(comp) / min(comp):.2f}", f"{min(wait):.3f}", f"{max(wait):.3f}",
+                         f"{min(r['sendrecv_MB'] for r in rs):.0f}--{max(r['sendrecv_MB'] for r in rs):.0f}"])
+    h_, l_ = axes[0, 0].get_legend_handles_labels()
+    fig.legend(h_, l_, fontsize=8, ncol=4, loc="upper center", bbox_to_anchor=(0.5, 0.965))
+    axes[-1, 0].set_xlabel("rank (B = big core, L = little core on mixed nodes; n0 / n1 = node)")
+    fig.suptitle(f"Per-rank time profile, final version (case {args.case}, 25 rounds)", fontsize=10, y=0.995)
+    footnote(fig, "Median of 5 trials per rank. Communication = MPI_Sendrecv incl. waiting for the partner; "
+                  "Synchronization = MPI_Allreduce incl. waiting for the slowest rank; "
+                  "Computation = Total - I/O - Comm. - Sync. of that rank.")
+    save(fig, "fig_per_rank.png", top=0.94)
+    table(f"Load balance across ranks (final version, case {args.case}, median of 5 trials). Waiting = communication "
+          "+ synchronization time of a rank; a rank with less computation spends more time waiting.", "tab:per-rank",
+          ["Configuration", "Min compute (s)", "Max compute (s)", "Max / min", "Min waiting (s)",
+           "Max waiting (s)", "Sent per rank (MB)"], rows_tex, "lrrrrrr")
+else:
+    skip("per-rank", f"找不到 {pr_path}（先跑 summarize.py）")
+
+# ---- 9. 哪些 MPI 操作最貴（Nsight Systems） ----
+nsys_dirs = sorted(glob.glob(os.path.join(os.path.dirname(args.summary), "nsys", "*", "mpi_summary.csv")))
+ops = {}
+for path in nsys_dirs:
+    ver = os.path.basename(os.path.dirname(path)).split("_")[0]
+    agg = defaultdict(lambda: [0.0, 0.0, 0.0])
+    nranks = set()
+    for r in csv.DictReader(open(path)):
+        nranks.add(r["rank"])
+        a = agg[r["mpi_call"]]
+        a[0] += float(r["total_ms"])
+        a[1] += float(r["count"])
+        a[2] += float(r["bytes"] or 0)
+    n = max(len(nranks), 1)
+    ops[ver] = {k: (v[0] / n, v[1] / n, v[2] / n / 1e6) for k, v in agg.items()}   # 每個 rank 的平均
+if ops:
+    vers = [v for v in ("ori", "final") if v in ops]
+    calls = sorted({c for v in vers for c in ops[v]}, key=lambda c: -max(ops[v].get(c, (0,))[0] for v in vers))
+    calls = [c for c in calls if max(ops[v].get(c, (0,))[0] for v in vers) >= 0.5]   # 去掉 < 0.5 ms 的
+    fig, ax = plt.subplots(figsize=(8, 0.45 * len(calls) + 1.6))
+    h = 0.8 / len(vers)
+    for j, v in enumerate(vers):
+        ys = [i + (j - (len(vers) - 1) / 2) * h for i in range(len(calls))]
+        vals = [ops[v].get(c, (0, 0, 0))[0] for c in calls]
+        cols = [C_IO if "File" in c else C_COMM if "Sendrecv" in c else C_SYNC for c in calls]
+        ax.barh(ys, vals, h, color=cols, alpha=1.0 if v == "final" else 0.45,
+                hatch=None if v == "final" else "//", edgecolor="white")
+        for y, val, c in zip(ys, vals, calls):
+            cnt = ops[v].get(c, (0, 0, 0))[1]
+            ax.text(val, y, f" {val:.0f} ms, {cnt:.0f} calls ({'original' if v == 'ori' else 'final'})",
+                    va="center", fontsize=6.5)
+    ax.set_yticks(range(len(calls)), calls, fontsize=8)
+    ax.invert_yaxis()
+    ax.set_xlabel("time per rank inside the MPI call (ms, mean over 4 ranks)")
+    ax.set_xlim(right=max(ops[v].get(c, (0,))[0] for v in vers for c in calls) * 1.7)
+    from matplotlib.patches import Patch
+    ax.legend(handles=[Patch(color=C_COMM, label="Communication"), Patch(color=C_SYNC, label="Synchronization / other"),
+                       Patch(color=C_IO, label="I/O"),
+                       Patch(facecolor="#BBBBBB", hatch="//", edgecolor="white", label="original version (hatched)")],
+              fontsize=7, loc="lower right")
+    ax.set_title(f"Cost of individual MPI operations (Nsight Systems, big, 4 processes, case {args.case})", fontsize=10)
+    ax.grid(axis="x", alpha=0.3)
+    footnote(fig, "Traced with nsys --trace=mpi; tracing adds overhead, so the values are used to compare operations, "
+                  "not as the reported run time. MPI_Init / MPI_Finalize include start-up and shut-down.")
+    save(fig, "fig_mpi_ops.png")
+    table("Time spent in each MPI operation per rank (Nsight Systems, \\texttt{big}, 4 processes, mean over ranks).",
+          "tab:mpi-ops", ["MPI operation"] + [f"{'Original' if v == 'ori' else 'Final'} {x}" for v in vers
+                                               for x in ("time (ms)", "calls", "MB")],
+          [[c.replace("_", "\\_")] + [x for v in vers for x in (
+              f"{ops[v].get(c, (0, 0, 0))[0]:.1f}", f"{ops[v].get(c, (0, 0, 0))[1]:.0f}",
+              f"{ops[v].get(c, (0, 0, 0))[2]:.0f}")] for c in calls])
+else:
+    skip("MPI operations", "找不到 test/exp/results/nsys/*/mpi_summary.csv（先跑 nsys_mpi.py）")
+
+# ---- 10. 總覽：每個設定的各項時間、MPI 呼叫數、通訊量、speedup ----
+ov = []
+for (st, v, part, nodes, p), r in sorted(R.items(), key=lambda kv: (kv[0][1] != "final", kv[0][0], kv[0][2],
+                                                                     kv[0][3], kv[0][4])):
+    if v not in ("final", "ori", "final_nocomp"):
+        continue
+    t = r["total_s"]
+    ov.append([v.replace("_", "\\_"), part, nodes, p, "/tmp" if st == "local" else "NFS", f3(t),
+               f"{r['compute_s'] / t * 100:.0f}\\%", f"{r['comm_s'] / t * 100:.0f}\\%",
+               f"{r['sync_s'] / t * 100:.0f}\\%", f"{r['io_s'] / t * 100:.0f}\\%",
+               f"{r.get('sendrecv_calls_per_rank', 0):.0f}", f"{r['sendrecv_MB']:.0f}",
+               f"{r['compute_imbalance']:.2f}"])
+if ov:
+    table(f"Overview of all configurations (case {args.case}, median of 5 trials). Percentages are shares of the total "
+          "time; Sendrecv calls are per sorting rank; sent volume is the sum over all ranks; imbalance = max / min "
+          "computation time among sorting ranks.", "tab:overview",
+          ["Version", "Partition", "Nodes", "Procs", "Storage", "Total (s)", "Comp.", "Comm.", "Sync.", "I/O",
+           "Calls", "Sent (MB)", "Imbal."], ov, "llrrlrrrrrrrr")
+
 # =============================================================================
 # test/opt/results/opt_*.txt
 # =============================================================================
@@ -426,14 +559,15 @@ if opt_path:
               [[n.replace("_", "\\_"), f"{v:.1f}", f"{base / v:.1f}$\\times$"] for n, v in rows])
 
     radix_section("1", "fig_opt_radix.png", "tab:opt-radix",
-                  "Optimization 1 (round 0): local sort of the input floats (1 process, big core)",
+                  "Optimization 1 (round 0): local sort of the input floats\n(1 process, big core; computation only - no MPI, no I/O)",
                   "Local sort of the original input values in round 0 (case 10, 1 process on a big core, median).")
     radix_section("4", "fig_opt_radix24.png", "tab:opt-radix24",
-                  "Optimization 1 (rounds 1-24): hash + local sort of 24-bit keys (1 process, big core)",
+                  "Optimization 1 (rounds 1-24): hash + local sort of 24-bit keys\n(1 process, big core; computation only - no MPI, no I/O)",
                   "Hash plus local sort in the rounds after hashing (24-bit keys, case 10, 1 process on a big core, "
                   "median). The final version computes the radix histogram inside the hash loop.")
 
-    # [2] compare-split：區塊以「input=... ranks=... 」開頭，接著四列 variant
+    # [2] compare-split：區塊以「input=... ranks=... 」開頭，接著四列 variant。
+    #     新版 bench_split 每列有 total / comm / sync / comp（ms）；舊版只有 total。
     split_rows = []
     kind, ranks = None, 0
     for line in sec.get("2", "").splitlines():
@@ -442,39 +576,74 @@ if opt_path:
             inp, ranks = h.group(1), int(h.group(2))
             kind = "nearly sorted" if "nearly" in inp else ("random (gen)" if "gen:random" in inp else "case 10")
             continue
+        m = re.match(r"^(V\d.*?)\s{2,}([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+(\d+)\s+(\d+)\s+(\S+)",
+                     line)
+        if m and kind:
+            split_rows.append(dict(kind=kind, p=ranks, v=m.group(1).strip(), total=float(m.group(2)),
+                                   comm=float(m.group(3)), sync=float(m.group(4)), comp=float(m.group(5)),
+                                   mb=float(m.group(6)), ex=int(m.group(7)), sk=int(m.group(8)), ok=m.group(9)))
+            continue
         m = re.match(r"^(V\d.*?)\s{2,}([\d.]+)\s+([\d.]+)\s+(\d+)\s+(\d+)\s+(\S+)", line)
         if m and kind:
-            split_rows.append((kind, ranks, m.group(1).strip(), float(m.group(2)), float(m.group(3)),
-                               int(m.group(4)), int(m.group(5)), m.group(6)))
+            split_rows.append(dict(kind=kind, p=ranks, v=m.group(1).strip(), total=float(m.group(2)), comm=None,
+                                   sync=None, comp=None, mb=float(m.group(3)), ex=int(m.group(4)),
+                                   sk=int(m.group(5)), ok=m.group(6)))
     if split_rows:
-        split_rows.sort(key=lambda r: (r[0], r[1], r[2]))
-        groups = sorted({(k, p) for k, p, *_ in split_rows})
-        fig, (a1, a2) = plt.subplots(1, 2, figsize=(11, 4))
-        variants = sorted({r[2] for r in split_rows})
-        cols = ["#8C8C8C", "#CCB974", "#DD8452", C_COMP]
+        split_rows.sort(key=lambda r: (r["kind"], r["p"], r["v"]))
+        has_split = all(r["comm"] is not None for r in split_rows)
+        groups = sorted({(r["kind"], r["p"]) for r in split_rows})
+        variants = sorted({r["v"] for r in split_rows})
+        fig, (a1, a2) = plt.subplots(1, 2, figsize=(12, 4.8))
         w = 0.8 / len(variants)
+        short = {v: v.split()[0] for v in variants}
         for j, v in enumerate(variants):
-            for ax, idx in ((a1, 3), (a2, 4)):
-                ys = [next((r[idx] for r in split_rows if (r[0], r[1]) == g and r[2] == v), 0) for g in groups]
-                xs = [i + (j - (len(variants) - 1) / 2) * w for i in range(len(groups))]
-                ax.bar(xs, ys, w, color=cols[j % len(cols)], label=v)
-                for x, y in zip(xs, ys):     # 標數字：例如 V3 在幾乎排好的資料只送不到 1 MB，柱子看不到
-                    ax.text(x, y, f"{y:.0f}" if y >= 10 else f"{y:.1f}", ha="center", va="bottom", fontsize=6)
-        for ax, yl, t in ((a1, "time (ms, median)", "Odd-even phase time"),
+            xs = [i + (j - (len(variants) - 1) / 2) * w for i in range(len(groups))]
+            rows = [next((r for r in split_rows if (r["kind"], r["p"]) == g and r["v"] == v), None) for g in groups]
+            if has_split:
+                bottom = [0.0] * len(xs)
+                for key, lab, col in (("comp", "Computation (merge)", C_COMP), ("comm", "Communication", C_COMM),
+                                      ("sync", "Synchronization", C_SYNC)):
+                    vals = [r[key] if r else 0 for r in rows]
+                    a1.bar(xs, vals, w, bottom=bottom, color=col, edgecolor="white", linewidth=0.5,
+                           label=lab if j == 0 else None)
+                    bottom = [bb + vv for bb, vv in zip(bottom, vals)]
+            else:
+                a1.bar(xs, [r["total"] if r else 0 for r in rows], w, color="#8C8C8C")
+            for x, r in zip(xs, rows):
+                if r:
+                    a1.text(x, r["total"], short[v], ha="center", va="bottom", fontsize=6)
+            a2.bar(xs, [r["mb"] if r else 0 for r in rows], w, color=C_COMM, alpha=0.4 + 0.2 * j)
+            for x, r in zip(xs, rows):
+                if r:
+                    a2.text(x, r["mb"], f"{short[v]}\n{r['mb']:.0f}" if r["mb"] >= 10 else f"{short[v]}\n{r['mb']:.1f}",
+                            ha="center", va="bottom", fontsize=6)
+        for ax, yl, t in ((a1, "time (ms, median of 5)", "Time of the odd-even phases"),
                           (a2, "MPI_Sendrecv payload, all ranks (MB)", "Communication volume")):
-            ax.set_xticks(range(len(groups)), [f"{k}\np={p}" for k, p in groups])
+            ax.set_xticks(range(len(groups)), [f"{k}\np = {p}" for k, p in groups])
+            ax.set_xlabel("input and number of MPI processes (big, 1 node)")
             ax.set_ylabel(yl)
             ax.set_title(t)
             ax.grid(axis="y", alpha=0.3)
-        a1.legend(fontsize=7)
-        fig.suptitle("Optimization 2: compare-split variants (starting from locally sorted blocks)", fontsize=10)
+            ax.set_ylim(top=ax.get_ylim()[1] * 1.15)
+        if has_split:
+            a1.legend(fontsize=7, loc="upper right")
+        fig.suptitle("Optimization 2: compare-split variants (one complete odd-even sort from locally sorted blocks; "
+                     "no I/O)", fontsize=10)
+        footnote(fig, "V0 = full-block exchange + full merge (original); V1 = full exchange + merge only the kept half; "
+                      "V2 = V1 + boundary check; V3 = V2 + send only elements that may move (final). "
+                      "Computation = total - Comm. (MPI_Sendrecv) - Sync. (MPI_Allreduce), mean over ranks.")
         save(fig, "fig_opt_split.png")
-        table("Compare-split variants: time of the complete odd-even phase loop, total MPI\\_Sendrecv payload, "
-              "and number of exchanges performed or skipped by the boundary check (median of 5 trials).",
-              "tab:opt-split",
-              ["Input", "Processes", "Variant", "Time (ms)", "Sent (MB)", "Exchanges", "Skipped", "Result"],
-              [[k, p, v, f"{t:.1f}", f"{mb:.1f}", ex, sk, ok] for k, p, v, t, mb, ex, sk, ok in split_rows],
-              "lrlrrrrl")
+        hdr = ["Input", "Procs", "Variant", "Total (ms)"] + (["Comp. (ms)", "Comm. (ms)", "Sync. (ms)"] if has_split else []) + \
+              ["Sent (MB)", "Exchanges", "Skipped", "Result"]
+        table("Compare-split variants: time of one complete odd-even sort (median of 5 trials) split into computation, "
+              "communication and synchronization, total MPI\\_Sendrecv payload, and number of exchanges performed "
+              "or skipped by the boundary check.", "tab:opt-split", hdr,
+              [[r["kind"], r["p"], r["v"], f"{r['total']:.1f}"] +
+               ([f"{r['comp']:.1f}", f"{r['comm']:.1f}", f"{r['sync']:.1f}"] if has_split else []) +
+               [f"{r['mb']:.1f}", r["ex"], r["sk"], r["ok"]] for r in split_rows],
+              "lrl" + "r" * (len(hdr) - 4) + "l")
+        if not has_split:
+            print("  注意：opt 結果是舊版 bench_split（沒有 comm / sync 分開），請重跑 sbatch test/opt/run_opt.sh")
     else:
         skip("compare-split", f"{opt_path} 的 [2] 區段解析不到資料")
 
@@ -485,20 +654,7 @@ if opt_path:
         if m:
             act.append((int(m.group(1)), m.group(2), float(m.group(3)), float(m.group(4)), m.group(5)))
     if act:
-        fig, ax = plt.subplots(figsize=(6.4, 4))
-        w = 0.38
-        xs = range(len(act))
-        ax.bar([x - w / 2 for x in xs], [a[3] for a in act], w, color="#8C8C8C", label="all 4 ranks sort")
-        ax.bar([x + w / 2 for x in xs], [a[2] for a in act], w, color=C_COMP,
-               label="final: >= 4096 elements per active rank")
-        for x, a in zip(xs, act):
-            ax.text(x + w / 2, a[2], f"{a[1].split()[0]} active", ha="center", va="bottom", fontsize=8)
-        ax.set_xticks(list(xs), [f"N={a[0]:,}" for a in act])
-        ax.set_ylabel("time from MPI_Init to MPI_Finalize (ms)")
-        ax.set_title("Optimization 3: active process selection for small N (4 processes)")
-        ax.legend(fontsize=8)
-        ax.grid(axis="y", alpha=0.3)
-        save(fig, "fig_opt_active.png")
+        # 只輸出表格：這不是報告的三個優化之一，而且只有總時間，不畫圖
         table("Effect of limiting active ranks for small inputs (4 processes on one big node, 25 rounds, median).",
               "tab:opt-active",
               ["N", "Active ranks", "Final (ms)", "All ranks (ms)", "Reduction", "Same output"],

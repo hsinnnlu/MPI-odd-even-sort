@@ -50,7 +50,7 @@ def parse_tag(tag, store):
 
 
 for path in glob.glob(os.path.join(res_dir, "*.csv")):
-    if path.endswith("summary.csv"):
+    if path.endswith(("summary.csv", "per_rank.csv")):
         continue
     store = "unknown"
     for line in open(path):
@@ -72,6 +72,7 @@ for path in glob.glob(os.path.join(res_dir, "*.csv")):
             wall[(case, ver, part, nodes, p, store_)].append((float(f[2]), f[3]))
 
 per_cfg = defaultdict(lambda: defaultdict(list))
+per_rank = defaultdict(lambda: defaultdict(list))   # (cfg, rank) -> 欄位 -> 各次執行的值
 mapping = {}
 cpu_list = {}                              # 設定 -> 第 1 次執行時各 rank（依 rank 順序）所在的 CPU 編號
 for (case, ver, part, nodes, p, store, trial), ranks in prof.items():
@@ -86,6 +87,13 @@ for (case, ver, part, nodes, p, store, trial), ranks in prof.items():
     mins = min(r["compute"] for r in busy)
     d["imbalance"].append(max(r["compute"] for r in busy) / mins if mins > 0 else float("nan"))
     d["busy"].append(len(busy))
+    d["calls"].append(statistics.mean(r["calls"] for r in busy))
+    for r in ranks:
+        pr = per_rank[(cfg, r["rank"])]
+        for k in ("total", "io", "comm", "sync", "compute", "calls", "MB"):
+            pr[k].append(r[k])
+        pr["host"] = r["host"]
+        pr["cpu"] = r["cpu"]
     d["MB"].append(sum(r["MB"] for r in ranks))
     # 位在節點邊界的 rank（左或右鄰居在另一台節點）送出的量：跨節點壓縮只作用在這些 rank 上
     by_rank = {r["rank"]: r for r in ranks}
@@ -137,7 +145,7 @@ for c in cfgs:
                  "comm_s": round(m["comm"], 4), "sync_s": round(m["sync"], 4), "compute_s": round(m["compute"], 4),
                  "speedup": round(sp, 3), "speedup_base": ("local" if borrowed else c[5]),
                  "compute_imbalance": round(m["imbalance"], 3),
-                 "sendrecv_MB": round(m["MB"]), "node_edge_MB": round(m["edge_MB"]) if "edge_MB" in m else 0, "comm_bw_MBps": round(m["bw"]) if m["bw"] == m["bw"] else "",
+                 "sendrecv_calls_per_rank": round(m["calls"], 1), "sendrecv_MB": round(m["MB"]), "node_edge_MB": round(m["edge_MB"]) if "edge_MB" in m else 0, "comm_bw_MBps": round(m["bw"]) if m["bw"] == m["bw"] else "",
                  "wall_s": round(wmed, 3), "correct": ok, "trials": len(per_cfg[c]["total"]),
                  "cpus": cpu_list.get(c, "")})
 
@@ -162,6 +170,21 @@ if both:
     for c in both:
         print(f"  case{c[0]} {c[1]:<12}{c[2]:<7}N{c[3]} p{c[4]}")
 print("* = 這個儲存位置沒有 1-process 的結果，speedup 用 local 的 1-process 當基準（不同儲存位置，報告中需註明）")
+
+# 每個 rank 各自的時間組成（5 次的中位數）：用來看哪些 rank 在等別人、負載是否平衡
+pr_rows = []
+for (cfg, rank), d in sorted(per_rank.items(), key=lambda kv: (kv[0][0], kv[0][1])):
+    pr_rows.append({"case": cfg[0], "storage": cfg[5], "version": cfg[1], "partition": cfg[2], "nodes": cfg[3],
+                    "procs": cfg[4], "rank": rank, "host": d["host"], "cpu": d["cpu"],
+                    **{f"{k}_s": round(statistics.median(d[k]), 4) for k in ("total", "io", "comm", "sync", "compute")},
+                    "sendrecv_calls": round(statistics.median(d["calls"])),
+                    "sendrecv_MB": round(statistics.median(d["MB"]), 1)})
+if pr_rows:
+    with open(os.path.join(res_dir, "per_rank.csv"), "w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=list(pr_rows[0].keys()))
+        w.writeheader()
+        w.writerows(pr_rows)
+    print(f"已寫入 {os.path.join(res_dir, 'per_rank.csv')}（每個 rank 的中位數）")
 
 out = os.path.join(res_dir, "summary.csv")
 with open(out, "w", newline="") as fh:

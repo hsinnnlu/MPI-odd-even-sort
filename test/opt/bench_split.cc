@@ -21,16 +21,28 @@
 // =============================================================================
 #include <mpi.h>
 
-// 計算 MPI_Sendrecv 的傳送量（hw1.cc 裡的呼叫也會經過這裡）
-static double g_sent_bytes = 0;
+// 計算 MPI_Sendrecv 的傳送量與時間、MPI_Allreduce 的時間（hw1.cc 裡的呼叫也會經過這裡）
+//   comm = MPI_Sendrecv（含等待對方），sync = MPI_Allreduce（終止判斷，含等待其他 rank）
+//   compute = 總時間 - comm - sync（merge 等本地計算；這個實驗沒有 I/O）
+static double g_sent_bytes = 0, g_comm = 0, g_sync = 0;
 static inline int count_Sendrecv(const void* sb, int sc, MPI_Datatype st, int dst, int stag, void* rb, int rc,
                                   MPI_Datatype rt, int src, int rtag, MPI_Comm c, MPI_Status* s) {
     int sz = 0;
     MPI_Type_size(st, &sz);
     g_sent_bytes += static_cast<double>(sc) * sz;
-    return PMPI_Sendrecv(sb, sc, st, dst, stag, rb, rc, rt, src, rtag, c, s);
+    const double t = PMPI_Wtime();
+    const int rc_ = PMPI_Sendrecv(sb, sc, st, dst, stag, rb, rc, rt, src, rtag, c, s);
+    g_comm += PMPI_Wtime() - t;
+    return rc_;
+}
+static inline int timed_Allreduce(const void* sb, void* rb, int n, MPI_Datatype t, MPI_Op op, MPI_Comm c) {
+    const double s = PMPI_Wtime();
+    const int rc = PMPI_Allreduce(sb, rb, n, t, op, c);
+    g_sync += PMPI_Wtime() - s;
+    return rc;
 }
 #define MPI_Sendrecv count_Sendrecv
+#define MPI_Allreduce timed_Allreduce
 
 #include <random>
 #include <string>
@@ -123,22 +135,26 @@ int main(int argc, char** argv) {
         return changed;
     };
 
-    struct Result { double ms; double mb; long long ex, sk; bool ok; };
     std::vector<Key> reference;
     auto run = [&](const char* name, auto&& split) {
-        std::vector<double> times;
+        std::vector<double> times, comms, syncs;
         double mb = 0;
         long long ex = 0, sk = 0;
         bool ok = true;
         for (int t = 0; t < trials; ++t) {
             ws.keys = sorted_block;
             exchanged = skipped = 0;
-            g_sent_bytes = 0;
+            g_sent_bytes = g_comm = g_sync = 0;
             MPI_Barrier(MPI_COMM_WORLD);
             const double s = MPI_Wtime();
             run_odd_even_phases(L, split);
+            const double my_comm = g_comm, my_sync = g_sync;   // 量測區間內的值（之後的 Allreduce 不算）
             MPI_Barrier(MPI_COMM_WORLD);
             times.push_back(MPI_Wtime() - s);
+            double cs[2] = {my_comm, my_sync}, cs_sum[2] = {0, 0};
+            PMPI_Allreduce(cs, cs_sum, 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+            comms.push_back(cs_sum[0] / size);   // 所有 rank 的平均
+            syncs.push_back(cs_sum[1] / size);
             double sent = g_sent_bytes;
             long long counts[2] = {exchanged, skipped}, sums[2];
             MPI_Reduce(&sent, &mb, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -150,16 +166,22 @@ int main(int argc, char** argv) {
             MPI_Allreduce(&same, &all_same, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD);
             ok = ok && all_same;
         }
-        std::sort(times.begin(), times.end());
+        // 取總時間為中位數的那一次，連同它的 comm / sync 一起報告
+        std::vector<size_t> idx(times.size());
+        for (size_t i = 0; i < idx.size(); ++i) idx[i] = i;
+        std::sort(idx.begin(), idx.end(), [&](size_t a, size_t b) { return times[a] < times[b]; });
+        const size_t m = idx[idx.size() / 2];
+        const double t_ms = times[m] * 1e3, c_ms = comms[m] * 1e3, y_ms = syncs[m] * 1e3;
         if (rank == 0)
-            std::printf("%-26s %10.1f %12.1f %10lld %9lld   %s\n", name, times[times.size() / 2] * 1e3,
-                        mb / 1e6, ex, sk, ok ? "OK" : "WRONG");
+            std::printf("%-26s %10.1f %9.1f %9.1f %9.1f %12.1f %10lld %9lld   %s\n", name, t_ms, c_ms, y_ms,
+                        t_ms - c_ms - y_ms, mb / 1e6, ex, sk, ok ? "OK" : "WRONG");
     };
 
     if (rank == 0) {
         std::printf("input=%s N=%d ranks=%d active=%d local_n≈%d trials=%d（時間為中位數；從各 rank 已排好的 block 開始）\n",
                     argv[1], n, size, L.active, L.local_n, trials);
-        std::printf("%-26s %10s %12s %10s %9s   %s\n", "variant", "ms", "sent MB", "exchanges", "skipped", "same result");
+        std::printf("%-26s %10s %9s %9s %9s %12s %10s %9s   %s\n", "variant", "total ms", "comm ms", "sync ms",
+                    "comp ms", "sent MB", "exchanges", "skipped", "same result");
     }
     run("V3 selective (final)", v3);   // 先跑繳交版，當作正確結果的參考
     run("V0 full + full merge", v0);
