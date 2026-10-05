@@ -210,11 +210,11 @@ final\_nocomp & mixed & 2 & 16 & NFS & 14.204 & 9\% & 80\% & 2\% & 14\% & 712 & 
 \toprule
 Method & Time (ms) & Speedup vs.\ first row \\
 \midrule
-std::sort (float) & 1686.8 & 1.0$\times$ \\
-radix 8+8+8+8 & 144.3 & 11.7$\times$ \\
-radix 16+16 & 134.2 & 12.6$\times$ \\
-radix 11+11+10 per-pass hist & 123.9 & 13.6$\times$ \\
-radix 11+11+10 fused (final) & 117.2 & 14.4$\times$ \\
+std::sort (float) & 1669.6 & 1.0$\times$ \\
+radix 8+8+8+8 & 145.4 & 11.5$\times$ \\
+radix 16+16 & 134.1 & 12.5$\times$ \\
+radix 11+11+10 per-pass hist & 122.8 & 13.6$\times$ \\
+radix 11+11+10 fused (final) & 116.6 & 14.3$\times$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -227,10 +227,10 @@ radix 11+11+10 fused (final) & 117.2 & 14.4$\times$ \\
 \toprule
 Method & Time (ms) & Speedup vs.\ first row \\
 \midrule
-hash + std::sort & 1373.6 & 1.0$\times$ \\
-hash + radix 12+12 (separate hist) & 132.5 & 10.4$\times$ \\
-hash + radix 8+8+8 (separate hist) & 102.5 & 13.4$\times$ \\
-hash+hist fused + radix 8+8+8 (final) & 66.4 & 20.7$\times$ \\
+hash + std::sort & 1358.1 & 1.0$\times$ \\
+hash + radix 12+12 (separate hist) & 133.5 & 10.2$\times$ \\
+hash + radix 8+8+8 (separate hist) & 105.4 & 12.9$\times$ \\
+hash+hist fused + radix 8+8+8 (final) & 66.1 & 20.5$\times$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -239,26 +239,26 @@ hash+hist fused + radix 8+8+8 (final) & 66.4 & 20.7$\times$ \\
 \centering
 \caption{Compare-split variants: time of one complete odd-even sort (median of 5 trials) split into computation, communication and synchronization, total MPI\_Sendrecv payload, and number of exchanges performed or skipped by the boundary check.}
 \label{tab:opt-split}
-\begin{tabular}{lrlrrrrl}
+\begin{tabular}{lrlrrrrrrrl}
 \toprule
-Input & Procs & Variant & Total (ms) & Sent (MB) & Exchanges & Skipped & Result \\
+Input & Procs & Variant & Total (ms) & Comp. (ms) & Comm. (ms) & Sync. (ms) & Sent (MB) & Exchanges & Skipped & Result \\
 \midrule
-case 10 & 2 & V0 full + full merge & 95.2 & 191.9 & 2 & 0 & OK \\
-case 10 & 2 & V1 full + partial merge & 52.8 & 191.9 & 2 & 0 & OK \\
-case 10 & 2 & V2 + boundary check & 26.6 & 96.0 & 1 & 1 & OK \\
-case 10 & 2 & V3 selective (final) & 26.4 & 96.0 & 1 & 1 & OK \\
-case 10 & 4 & V0 full + full merge & 130.2 & 431.8 & 9 & 0 & OK \\
-case 10 & 4 & V1 full + partial merge & 86.8 & 431.8 & 9 & 0 & OK \\
-case 10 & 4 & V2 + boundary check & 43.7 & 239.9 & 5 & 4 & OK \\
-case 10 & 4 & V3 selective (final) & 43.5 & 239.9 & 5 & 4 & OK \\
-nearly sorted & 2 & V0 full + full merge & 37.3 & 191.9 & 2 & 0 & OK \\
-nearly sorted & 2 & V1 full + partial merge & 52.8 & 191.9 & 2 & 0 & OK \\
-nearly sorted & 2 & V2 + boundary check & 26.3 & 96.0 & 1 & 1 & OK \\
-nearly sorted & 2 & V3 selective (final) & 20.4 & 0.2 & 1 & 1 & OK \\
-nearly sorted & 4 & V0 full + full merge & 52.3 & 287.9 & 6 & 0 & OK \\
-nearly sorted & 4 & V1 full + partial merge & 57.7 & 287.9 & 6 & 0 & OK \\
-nearly sorted & 4 & V2 + boundary check & 28.3 & 143.9 & 3 & 3 & OK \\
-nearly sorted & 4 & V3 selective (final) & 20.6 & 0.6 & 3 & 3 & OK \\
+case 10 & 2 & V0 full + full merge & 106.0 & 94.9 & 10.5 & 0.5 & 191.9 & 2 & 0 & OK \\
+case 10 & 2 & V1 full + partial merge & 53.5 & 40.2 & 13.1 & 0.2 & 191.9 & 2 & 0 & OK \\
+case 10 & 2 & V2 + boundary check & 25.6 & 20.1 & 5.4 & 0.1 & 96.0 & 1 & 1 & OK \\
+case 10 & 2 & V3 selective (final) & 25.8 & 20.1 & 5.5 & 0.1 & 96.0 & 1 & 1 & OK \\
+case 10 & 4 & V0 full + full merge & 138.5 & 105.0 & 23.1 & 10.4 & 431.8 & 9 & 0 & OK \\
+case 10 & 4 & V1 full + partial merge & 83.4 & 45.8 & 24.1 & 13.4 & 431.8 & 9 & 0 & OK \\
+case 10 & 4 & V2 + boundary check & 42.8 & 25.4 & 17.1 & 0.3 & 239.9 & 5 & 4 & OK \\
+case 10 & 4 & V3 selective (final) & 42.4 & 25.5 & 16.7 & 0.3 & 239.9 & 5 & 4 & OK \\
+nearly sorted & 2 & V0 full + full merge & 36.6 & 24.0 & 10.9 & 1.8 & 191.9 & 2 & 0 & OK \\
+nearly sorted & 2 & V1 full + partial merge & 53.8 & 40.2 & 13.4 & 0.2 & 191.9 & 2 & 0 & OK \\
+nearly sorted & 2 & V2 + boundary check & 25.6 & 20.1 & 5.4 & 0.1 & 96.0 & 1 & 1 & OK \\
+nearly sorted & 2 & V3 selective (final) & 20.2 & 20.1 & 0.0 & 0.1 & 0.2 & 1 & 1 & OK \\
+nearly sorted & 4 & V0 full + full merge & 52.2 & 29.1 & 18.1 & 5.1 & 287.9 & 6 & 0 & OK \\
+nearly sorted & 4 & V1 full + partial merge & 55.9 & 30.5 & 18.9 & 6.5 & 287.9 & 6 & 0 & OK \\
+nearly sorted & 4 & V2 + boundary check & 27.7 & 15.2 & 12.4 & 0.0 & 143.9 & 3 & 3 & OK \\
+nearly sorted & 4 & V3 selective (final) & 20.4 & 15.2 & 5.2 & 0.0 & 0.6 & 3 & 3 & OK \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -271,9 +271,9 @@ nearly sorted & 4 & V3 selective (final) & 20.6 & 0.6 & 3 & 3 & OK \\
 \toprule
 N & Active ranks & Final (ms) & All ranks (ms) & Reduction & Same output \\
 \midrule
-100 & 1 & 0.59 & 0.69 & 14.5\% & yes \\
-1,000 & 1 & 0.65 & 0.77 & 15.6\% & yes \\
-10,000 & 3 & 1.39 & 1.29 & -7.8\% & yes \\
+100 & 1 & 0.60 & 0.69 & 13.0\% & yes \\
+1,000 & 1 & 0.64 & 0.78 & 17.9\% & yes \\
+10,000 & 3 & 1.41 & 1.32 & -6.8\% & yes \\
 \bottomrule
 \end{tabular}
 \end{table}
