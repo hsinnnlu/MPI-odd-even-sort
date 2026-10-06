@@ -1,0 +1,783 @@
+<title>節拍工作台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: sticky top bar with view tabs; each view is a responsive grid of panels. Tasks read as index cards on a slate desk. */
+:root {
+  --bg: #eef1f4;
+  --surface: #ffffff;
+  --surface-2: #f5f7f9;
+  --line: #d9dfe5;
+  --fg: #17212b;
+  --muted: #5b6875;
+  --accent: #1f5f8b;
+  --accent-soft: #dbe8f2;
+  --focus: #c2621b;
+  --focus-soft: #f8e6d6;
+  --ok: #2f7d4f;
+  --ok-soft: #dcefe3;
+  --warn: #a8690a;
+  --warn-soft: #f6ead3;
+  --bad: #b23a3a;
+  --bad-soft: #f6dddd;
+  --shadow: 0 1px 2px rgba(23,33,43,.06), 0 2px 8px rgba(23,33,43,.05);
+  --f-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12171c; --surface: #1a2128; --surface-2: #20282f; --line: #2e3842;
+    --fg: #e4e9ee; --muted: #93a1ae; --accent: #6eb0dc; --accent-soft: #1d3346;
+    --focus: #f0954f; --focus-soft: #3a2717; --ok: #6cc28f; --ok-soft: #183226;
+    --warn: #e0ad55; --warn-soft: #362a14; --bad: #ec8585; --bad-soft: #3a1d1f;
+    --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12171c; --surface: #1a2128; --surface-2: #20282f; --line: #2e3842;
+  --fg: #e4e9ee; --muted: #93a1ae; --accent: #6eb0dc; --accent-soft: #1d3346;
+  --focus: #f0954f; --focus-soft: #3a2717; --ok: #6cc28f; --ok-soft: #183226;
+  --warn: #e0ad55; --warn-soft: #362a14; --bad: #ec8585; --bad-soft: #3a1d1f;
+  --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; line-height: 1.55; margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* Top bar */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+.top-in { max-width: 1180px; margin: 0 auto; padding: 12px 16px 0; display: flex; flex-wrap: wrap; align-items: end; gap: 8px 24px; }
+.brand { display: flex; align-items: baseline; gap: 10px; padding-bottom: 10px; }
+.brand b { font-weight: 900; font-size: 20px; letter-spacing: .02em; }
+.brand .beat { display: inline-flex; gap: 3px; align-items: end; height: 16px; }
+.brand .beat i { width: 4px; background: var(--accent); border-radius: 1px; }
+.brand small { color: var(--muted); font-size: 13px; }
+.tabs { display: flex; gap: 2px; overflow-x: auto; margin-left: auto; }
+.tab { border: 0; background: none; padding: 8px 14px 10px; cursor: pointer; color: var(--muted); border-bottom: 3px solid transparent; white-space: nowrap; font-weight: 500; }
+.tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.tab .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--focus); margin-left: 6px; vertical-align: middle; }
+
+main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 48px; }
+.view { display: grid; gap: 16px; }
+h2 { font-size: 15px; font-weight: 700; margin: 0; letter-spacing: .02em; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+.panel-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.label { font-size: 12px; letter-spacing: .06em; color: var(--muted); }
+.muted { color: var(--muted); }
+.empty { color: var(--muted); padding: 20px 8px; text-align: center; font-size: 14px; }
+
+/* Buttons */
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 7px 14px; border-radius: 7px; cursor: pointer; font-size: 14px; font-weight: 500; }
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.go { background: var(--focus); border-color: var(--focus); color: var(--surface); }
+.btn.danger { color: var(--bad); }
+.btn.danger.armed { background: var(--bad); color: var(--surface); border-color: var(--bad); }
+.btn.sm { padding: 3px 9px; font-size: 13px; }
+.icon-btn { border: 0; background: none; cursor: pointer; color: var(--muted); padding: 2px 6px; border-radius: 5px; font-size: 13px; }
+.icon-btn:hover { background: var(--surface-2); color: var(--fg); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* KPI */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.kpi .v { font-family: var(--f-mono); font-size: 26px; font-weight: 600; line-height: 1.2; margin-top: 4px; }
+.kpi .v small { font-size: 14px; color: var(--muted); font-weight: 400; margin-left: 2px; }
+.kpi.alert .v { color: var(--bad); }
+.overview-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; }
+
+/* Lists */
+.rows { display: grid; gap: 2px; }
+.row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 6px; border-radius: 7px; }
+.row:hover { background: var(--surface-2); }
+.row .t { overflow-wrap: anywhere; }
+.row .sub { font-size: 12px; color: var(--muted); }
+.check { width: 18px; height: 18px; border: 2px solid var(--line); border-radius: 5px; background: none; cursor: pointer; padding: 0; display: grid; place-items: center; }
+.check:hover { border-color: var(--ok); }
+.check.on { background: var(--ok); border-color: var(--ok); color: var(--surface); font-size: 12px; }
+
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+.chip.p-high { background: var(--bad-soft); color: var(--bad); }
+.chip.p-mid { background: var(--warn-soft); color: var(--warn); }
+.chip.p-low { background: var(--ok-soft); color: var(--ok); }
+.chip.overdue { background: var(--bad-soft); color: var(--bad); font-weight: 500; }
+.chip.today { background: var(--focus-soft); color: var(--focus); font-weight: 500; }
+.chip.example { background: var(--accent-soft); color: var(--accent); }
+.swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+
+/* Progress */
+.proj-line { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
+.proj-line:first-child { border-top: 0; padding-top: 0; }
+.proj-line .top-r { display: flex; align-items: center; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+.bar { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.bar > i { display: block; height: 100%; border-radius: 3px; }
+
+/* Chart */
+.chart svg { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--muted); font-family: var(--f-mono); font-size: 11px; }
+.chart .val { fill: var(--fg); font-weight: 600; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+
+/* Board */
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.toolbar .grow { flex: 1; }
+.board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.col { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; min-width: 0; min-height: 120px; }
+.col.drag-over { outline: 2px dashed var(--accent); outline-offset: -4px; }
+.col-h { display: flex; justify-content: space-between; align-items: center; padding: 2px 4px 10px; }
+.col-h .count { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.cards { display: grid; gap: 8px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; box-shadow: var(--shadow); cursor: grab; display: grid; gap: 6px; border-left: 4px solid var(--pc, var(--line)); }
+.card:active { cursor: grabbing; }
+.card .ct { font-weight: 500; overflow-wrap: anywhere; }
+.card .meta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.card .foot { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.card.done .ct { text-decoration: line-through; color: var(--muted); }
+.time-bar { height: 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; }
+.time-bar i { display: block; height: 100%; background: var(--focus); }
+.time-bar.over i { background: var(--bad); }
+
+/* Focus */
+.focus-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.timer { display: grid; justify-items: center; gap: 16px; padding: 24px 16px; }
+.ring { position: relative; width: min(280px, 72vw); aspect-ratio: 1; max-width: 100%; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring .trk { stroke: var(--surface-2); }
+.ring .prg { stroke: var(--focus); transition: stroke-dashoffset .3s linear; }
+.ring.brk .prg { stroke: var(--ok); }
+.ring .center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 2px; }
+.ring .clock { font-family: var(--f-mono); font-size: clamp(40px, 11vw, 56px); font-weight: 600; letter-spacing: -.02em; line-height: 1; }
+.seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 2px; flex-wrap: wrap; justify-content: center; }
+.seg button { border: 0; background: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: var(--shadow); font-weight: 500; }
+.timer-ctrl { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.timer-ctrl .btn { min-width: 92px; }
+.field { display: grid; gap: 4px; }
+.field label { font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+input[type=text], input[type=date], input[type=number], select, textarea { background: var(--surface); border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; width: 100%; min-width: 0; }
+textarea { resize: vertical; min-height: 64px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.form-grid .full { grid-column: 1 / -1; }
+.pomo-dots { display: flex; gap: 6px; align-items: center; }
+.pomo-dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line); }
+.pomo-dots i.on { background: var(--focus); border-color: var(--focus); }
+
+/* Projects */
+.proj-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.pcard { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 10px; border-top: 4px solid var(--pc); }
+.pcard h3 { margin: 0; font-size: 17px; text-wrap: balance; overflow-wrap: anywhere; }
+.pcard .desc { color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stats div { background: var(--surface-2); border-radius: 7px; padding: 6px 8px; }
+.stats b { display: block; font-family: var(--f-mono); font-size: 16px; }
+.stats span { font-size: 11px; color: var(--muted); }
+.pcard .acts { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.colors { display: flex; gap: 8px; flex-wrap: wrap; }
+.colors button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+.colors button[aria-pressed="true"] { border-color: var(--fg); }
+
+/* Dialog */
+dialog { border: 1px solid var(--line); border-radius: 12px; padding: 0; background: var(--surface); color: var(--fg); width: min(520px, calc(100vw - 32px)); box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+dialog::backdrop { background: rgba(10,15,20,.45); }
+dialog form { padding: 20px; display: grid; gap: 16px; }
+dialog h2 { font-size: 17px; }
+.dlg-actions { display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+.dlg-actions .r { display: flex; gap: 8px; margin-left: auto; }
+
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 9px 16px; border-radius: 8px; font-size: 14px; z-index: 20; max-width: calc(100vw - 32px); }
+.sync { font-size: 12px; color: var(--muted); }
+
+@media (max-width: 860px) {
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .overview-grid, .focus-grid { grid-template-columns: minmax(0, 1fr); }
+  .board { grid-template-columns: minmax(0, 1fr); }
+  .tabs { margin-left: 0; width: 100%; }
+}
+@media (max-width: 480px) { .form-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .ring .prg { transition: none; } }
+</style>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <span class="beat" aria-hidden="true"><i style="height:7px"></i><i style="height:16px"></i><i style="height:11px"></i></span>
+      <b>節拍工作台</b>
+      <small id="today-label"></small>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="檢視">
+      <button class="tab" role="tab" data-view="overview" id="tab-overview">總覽</button>
+      <button class="tab" role="tab" data-view="board" id="tab-board">任務看板</button>
+      <button class="tab" role="tab" data-view="focus" id="tab-focus">專注計時</button>
+      <button class="tab" role="tab" data-view="projects" id="tab-projects">專案</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- Overview -->
+  <section class="view" id="view-overview" hidden>
+    <div class="kpis" id="kpis"></div>
+    <div class="overview-grid">
+      <div class="panel">
+        <div class="panel-h"><h2>今天要處理</h2><button class="btn sm" data-new-task>＋ 新任務</button></div>
+        <div class="rows" id="today-list"></div>
+      </div>
+      <div class="panel chart">
+        <div class="panel-h"><h2>近 7 天專注時數</h2><span class="label" id="week-total"></span></div>
+        <div id="week-chart"></div>
+      </div>
+    </div>
+    <div class="overview-grid">
+      <div class="panel">
+        <div class="panel-h"><h2>專案進度</h2><button class="btn sm" data-goto="projects">管理專案</button></div>
+        <div id="proj-progress"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><h2>即將到期</h2><span class="label">未來 7 天</span></div>
+        <div class="rows" id="upcoming-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Board -->
+  <section class="view" id="view-board" hidden>
+    <div class="toolbar">
+      <select id="board-project" aria-label="篩選專案" style="width:auto"></select>
+      <input type="text" id="board-search" placeholder="搜尋任務…" aria-label="搜尋任務" style="width:auto;flex:1;min-width:140px">
+      <button class="btn primary" data-new-task>＋ 新任務</button>
+    </div>
+    <div class="board" id="board"></div>
+  </section>
+
+  <!-- Focus -->
+  <section class="view" id="view-focus" hidden>
+    <div class="focus-grid">
+      <div class="panel timer">
+        <div class="seg" role="group" aria-label="計時模式">
+          <button data-mode="focus" id="mode-focus">專注 25</button>
+          <button data-mode="short" id="mode-short">短休 5</button>
+          <button data-mode="long" id="mode-long">長休 15</button>
+        </div>
+        <div class="ring" id="ring">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="trk" cx="60" cy="60" r="54" fill="none" stroke-width="7"></circle>
+            <circle class="prg" id="ring-prg" cx="60" cy="60" r="54" fill="none" stroke-width="7" stroke-linecap="round" stroke-dasharray="339.29" stroke-dashoffset="0"></circle>
+          </svg>
+          <div class="center">
+            <div class="clock" id="clock" role="timer" aria-live="off">25:00</div>
+            <div class="label" id="clock-sub">準備開始</div>
+          </div>
+        </div>
+        <div class="field" style="width:min(320px,100%)">
+          <label for="timer-task">正在做的任務</label>
+          <select id="timer-task"></select>
+        </div>
+        <div class="timer-ctrl">
+          <button class="btn go" id="t-start">開始</button>
+          <button class="btn" id="t-reset">重設</button>
+          <button class="btn" id="t-log">結束並記錄</button>
+        </div>
+        <div class="pomo-dots" id="pomo-dots" title="今日完成的番茄鐘"></div>
+      </div>
+      <div class="view" style="gap:16px">
+        <div class="panel">
+          <div class="panel-h"><h2>手動記錄時間</h2></div>
+          <form id="manual-form" class="form-grid">
+            <div class="field full"><label for="m-task">任務</label><select id="m-task"></select></div>
+            <div class="field"><label for="m-min">分鐘</label><input type="number" id="m-min" min="1" max="720" value="30" required></div>
+            <div class="field"><label for="m-date">日期</label><input type="date" id="m-date" required></div>
+            <div class="field full"><label for="m-note">備註（選填）</label><input type="text" id="m-note" placeholder="例如：和客戶開會"></div>
+            <div class="full"><button class="btn primary" type="submit">新增紀錄</button></div>
+          </form>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h2>時間紀錄</h2><span class="label num" id="log-today"></span></div>
+          <div class="rows" id="log-list"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Projects -->
+  <section class="view" id="view-projects" hidden>
+    <div class="toolbar"><span class="grow muted" id="proj-count"></span><button class="btn primary" id="new-project">＋ 新專案</button></div>
+    <div class="proj-cards" id="proj-cards"></div>
+  </section>
+  <p class="sync" id="sync-note"></p>
+</main>
+
+<!-- Task dialog -->
+<dialog id="task-dlg">
+  <form method="dialog" id="task-form">
+    <h2 id="task-dlg-title">新任務</h2>
+    <div class="form-grid">
+      <div class="field full"><label for="f-title">任務名稱</label><input type="text" id="f-title" required maxlength="120"></div>
+      <div class="field"><label for="f-project">專案</label><select id="f-project"></select></div>
+      <div class="field"><label for="f-status">狀態</label>
+        <select id="f-status"><option value="todo">待辦</option><option value="doing">進行中</option><option value="done">已完成</option></select></div>
+      <div class="field"><label for="f-priority">優先度</label>
+        <select id="f-priority"><option value="high">高</option><option value="mid">中</option><option value="low">低</option></select></div>
+      <div class="field"><label for="f-due">截止日</label><input type="date" id="f-due"></div>
+      <div class="field"><label for="f-est">預估時間（分鐘）</label><input type="number" id="f-est" min="0" step="15" placeholder="例如 90"></div>
+      <div class="field full"><label for="f-notes">備註</label><textarea id="f-notes" maxlength="2000"></textarea></div>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn danger" id="task-del">刪除</button>
+      <div class="r"><button type="button" class="btn" data-close>取消</button><button type="submit" class="btn primary">儲存</button></div>
+    </div>
+  </form>
+</dialog>
+
+<!-- Project dialog -->
+<dialog id="proj-dlg">
+  <form method="dialog" id="proj-form">
+    <h2 id="proj-dlg-title">新專案</h2>
+    <div class="form-grid">
+      <div class="field full"><label for="p-name">專案名稱</label><input type="text" id="p-name" required maxlength="80"></div>
+      <div class="field"><label for="p-start">開始日</label><input type="date" id="p-start"></div>
+      <div class="field"><label for="p-deadline">截止日</label><input type="date" id="p-deadline"></div>
+      <div class="field full"><label for="p-desc">說明</label><textarea id="p-desc" maxlength="600"></textarea></div>
+      <div class="field full"><label>顏色</label><div class="colors" id="p-colors"></div></div>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn danger" id="proj-del">刪除專案</button>
+      <div class="r"><button type="button" class="btn" data-close>取消</button><button type="submit" class="btn primary">儲存</button></div>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  const COLORS = ["#1f6fa8", "#c2621b", "#2f8a5a", "#8a4fb5", "#b8475f", "#7a8a1f", "#2b8c95", "#6b6f78"];
+  const STATUS = [["todo", "待辦"], ["doing", "進行中"], ["done", "已完成"]];
+  const PRIO = { high: "高", mid: "中", low: "低" };
+  const MODES = { focus: 25, short: 5, long: 15 };
+  const LS_DATA = "beat-data-v1", LS_TIMER = "beat-timer-v1", LS_VIEW = "beat-view";
+
+  const S = { projects: {}, tasks: {}, sessions: {} };
+  let db = null, loaded = false;
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+  // ---------- dates ----------
+  const pad = n => String(n).padStart(2, "0");
+  const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const today = () => ymd(new Date());
+  const addDays = (s, n) => { const d = new Date(s + "T00:00:00"); d.setDate(d.getDate() + n); return ymd(d); };
+  const diffDays = (a, b) => Math.round((new Date(a + "T00:00:00") - new Date(b + "T00:00:00")) / 864e5);
+  const WD = ["日", "一", "二", "三", "四", "五", "六"];
+  const fmtDate = s => { const d = new Date(s + "T00:00:00"); return `${d.getMonth() + 1}/${d.getDate()}（${WD[d.getDay()]}）`; };
+  const fmtMin = m => { m = Math.round(m || 0); if (m < 60) return `${m} 分`; const h = Math.floor(m / 60), r = m % 60; return r ? `${h} 小時 ${r} 分` : `${h} 小時`; };
+  const fmtH = m => (Math.round((m || 0) / 6) / 10).toFixed(1);
+  function dueChip(due, done) {
+    if (!due) return "";
+    if (done) return `<span class="chip">${fmtDate(due)}</span>`;
+    const d = diffDays(due, today());
+    if (d < 0) return `<span class="chip overdue">逾期 ${-d} 天</span>`;
+    if (d === 0) return `<span class="chip today">今天到期</span>`;
+    if (d === 1) return `<span class="chip">明天</span>`;
+    return `<span class="chip">${fmtDate(due)}</span>`;
+  }
+
+  // ---------- store ----------
+  const list = c => Object.values(S[c]);
+  const proj = id => S.projects[id];
+  const projColor = id => proj(id)?.color || "var(--line)";
+  const loggedFor = taskId => list("sessions").filter(s => s.taskId === taskId).reduce((a, s) => a + (s.minutes || 0), 0);
+  const isExample = o => o && o.example === true;
+
+  function persistLocal() { if (!db) lsSet(LS_DATA, S); }
+  async function save(coll, obj) {
+    S[coll][obj.id] = obj; render();
+    if (db) {
+      const { id, ...body } = obj;
+      try { await db.collection(coll).doc(id).set(body); }
+      catch (e) { toast(e?.code === "quota_exceeded" ? "儲存空間已滿，請刪除一些舊紀錄後再試。" : "儲存失敗，請檢查網路後重試。"); }
+    } else persistLocal();
+  }
+  async function remove(coll, id) {
+    delete S[coll][id]; render();
+    if (db) { try { await db.collection(coll).doc(id).delete(); } catch { toast("刪除失敗，請稍後重試。"); } }
+    else persistLocal();
+  }
+
+  async function initStore() {
+    let ns = null;
+    try { if (window.claude?.use) ns = await window.claude.use("db"); } catch { ns = null; }
+    if (!ns) {
+      const d = lsGet(LS_DATA);
+      if (d) for (const c of ["projects", "tasks", "sessions"]) S[c] = d[c] || {};
+      loaded = true;
+      $("#sync-note").textContent = "資料儲存在這個瀏覽器中。";
+      render(); return;
+    }
+    db = ns;
+    $("#sync-note").textContent = "資料已同步到雲端，換裝置開啟也看得到。";
+    let pending = 3;
+    for (const c of ["projects", "tasks", "sessions"]) {
+      let first = true;
+      db.collection(c).onSnapshot(snap => {
+        const next = {};
+        snap.docs.forEach(d => { next[d.id] = { ...d.data(), id: d.id }; });
+        S[c] = next;
+        if (first) { first = false; if (--pending === 0) loaded = true; }
+        render();
+      }, err => { if (err?.code !== "revoked") toast("同步中斷，請重新整理頁面。"); });
+    }
+  }
+
+  // ---------- view switching ----------
+  let view = lsGet(LS_VIEW) || "overview";
+  if (location.hash && ["overview", "board", "focus", "projects"].includes(location.hash.slice(1))) view = location.hash.slice(1);
+  function setView(v) {
+    view = v; lsSet(LS_VIEW, v);
+    $$(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.view === v));
+    $$(".view[id^=view-]").forEach(s => s.hidden = s.id !== "view-" + v);
+    render();
+  }
+  $$(".tab").forEach(t => t.addEventListener("click", () => setView(t.dataset.view)));
+  document.addEventListener("click", e => {
+    const g = e.target.closest("[data-goto]"); if (g) setView(g.dataset.goto);
+    const n = e.target.closest("[data-new-task]"); if (n) openTask(null);
+    const c = e.target.closest("[data-close]"); if (c) c.closest("dialog").close();
+  });
+
+  // ---------- render ----------
+  function render() {
+    $("#today-label").textContent = fmtDate(today());
+    if (view === "overview") renderOverview();
+    if (view === "board") renderBoard();
+    if (view === "focus") renderFocusLists();
+    if (view === "projects") renderProjects();
+    $$(".tab .dot").forEach(d => d.remove());
+    if (timer.running) $("#tab-focus").insertAdjacentHTML("beforeend", '<span class="dot" title="計時中"></span>');
+  }
+
+  function taskRow(t) {
+    const p = proj(t.projectId);
+    const done = t.status === "done";
+    return `<div class="row">
+      <button class="check ${done ? "on" : ""}" data-toggle="${t.id}" aria-label="${done ? "標記為未完成" : "標記為完成"}">${done ? "✓" : ""}</button>
+      <div style="min-width:0"><div class="t">${esc(t.title)} ${isExample(t) ? '<span class="chip example">範例</span>' : ""}</div>
+        <div class="sub">${p ? `<span class="swatch" style="background:${p.color}"></span> ${esc(p.name)}` : "未分類"}${t.estimate ? ` · ${fmtMin(loggedFor(t.id))} / ${fmtMin(t.estimate)}` : ""}</div></div>
+      <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end">${dueChip(t.due, done)}<span class="chip p-${t.priority}">${PRIO[t.priority] || "中"}</span>
+        <button class="icon-btn" data-focus-task="${t.id}" title="開始專注">▶</button></div>
+    </div>`;
+  }
+  const prioRank = { high: 0, mid: 1, low: 2 };
+  const byUrgency = (a, b) => (a.due || "9999").localeCompare(b.due || "9999") || prioRank[a.priority] - prioRank[b.priority];
+
+  function emptyState(msg) {
+    return `<div class="empty">${loaded ? msg : "載入中…"}</div>`;
+  }
+
+  function renderOverview() {
+    const t0 = today(), tasks = list("tasks"), sessions = list("sessions");
+    const weekStart = addDays(t0, -6);
+    const weekMin = sessions.filter(s => s.date >= weekStart && s.date <= t0).reduce((a, s) => a + s.minutes, 0);
+    const todayMin = sessions.filter(s => s.date === t0).reduce((a, s) => a + s.minutes, 0);
+    const open = tasks.filter(t => t.status !== "done");
+    const overdue = open.filter(t => t.due && t.due < t0).length;
+    const doneWeek = tasks.filter(t => t.status === "done" && t.doneAt && t.doneAt >= weekStart).length;
+    $("#kpis").innerHTML = `
+      <div class="kpi"><div class="label">今日專注</div><div class="v">${fmtH(todayMin)}<small>小時</small></div></div>
+      <div class="kpi"><div class="label">本週專注</div><div class="v">${fmtH(weekMin)}<small>小時</small></div></div>
+      <div class="kpi"><div class="label">本週完成任務</div><div class="v">${doneWeek}<small>件</small></div></div>
+      <div class="kpi ${overdue ? "alert" : ""}"><div class="label">逾期任務</div><div class="v">${overdue}<small>件</small></div></div>`;
+
+    const todayTasks = open.filter(t => t.status === "doing" || (t.due && t.due <= t0)).sort(byUrgency);
+    $("#today-list").innerHTML = todayTasks.length ? todayTasks.map(taskRow).join("") : emptyState("今天沒有到期或進行中的任務。按「新任務」加入第一件要做的事。");
+    const up = open.filter(t => t.due && t.due > t0 && t.due <= addDays(t0, 7) && t.status !== "doing").sort(byUrgency);
+    $("#upcoming-list").innerHTML = up.length ? up.map(taskRow).join("") : emptyState("未來 7 天沒有到期的任務。");
+
+    // chart
+    const days = [...Array(7)].map((_, i) => addDays(t0, i - 6));
+    const vals = days.map(d => sessions.filter(s => s.date === d).reduce((a, s) => a + s.minutes, 0) / 60);
+    const max = Math.max(2, Math.ceil(Math.max(...vals)));
+    const W = 420, H = 200, L = 30, B = 26, T = 18, R = 6, cw = (W - L - R) / 7;
+    const y = v => T + (H - T - B) * (1 - v / max);
+    const step = max <= 4 ? 1 : max <= 8 ? 2 : Math.ceil(max / 4);
+    let g = "";
+    for (let v = 0; v <= max; v += step) g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v}h</text>`;
+    const bars = vals.map((v, i) => {
+      const x = L + i * cw + cw * .2, w = cw * .6, isT = i === 6;
+      const fill = isT ? "var(--focus)" : "var(--accent)";
+      return `<rect x="${x}" y="${y(v)}" width="${w}" height="${Math.max(0, y(0) - y(v))}" rx="3" fill="${fill}" opacity="${isT ? 1 : .8}"/>
+        ${v > 0 ? `<text class="val" x="${x + w / 2}" y="${y(v) - 5}" text-anchor="middle">${v.toFixed(1)}</text>` : ""}
+        <text x="${x + w / 2}" y="${H - 8}" text-anchor="middle">${isT ? "今天" : WD[new Date(days[i] + "T00:00:00").getDay()]}</text>`;
+    }).join("");
+    $("#week-chart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="近七天每日專注時數">${g}${bars}</svg>`;
+    $("#week-total").textContent = `合計 ${fmtH(weekMin)} 小時`;
+
+    // project progress
+    const ps = list("projects").sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999"));
+    $("#proj-progress").innerHTML = ps.length ? ps.map(p => {
+      const pt = tasks.filter(t => t.projectId === p.id), d = pt.filter(t => t.status === "done").length;
+      const pct = pt.length ? Math.round(d / pt.length * 100) : 0;
+      const left = p.deadline ? diffDays(p.deadline, t0) : null;
+      return `<div class="proj-line"><div class="top-r"><span style="display:flex;gap:8px;align-items:center;min-width:0"><span class="swatch" style="background:${p.color}"></span><b style="overflow-wrap:anywhere">${esc(p.name)}</b></span>
+        <span class="muted num" style="font-size:13px">${d}/${pt.length} · ${pct}%${left !== null ? ` · ${left < 0 ? `已逾期 ${-left} 天` : left === 0 ? "今天截止" : `剩 ${left} 天`}` : ""}</span></div>
+        <div class="bar"><i style="width:${pct}%;background:${p.color}"></i></div></div>`;
+    }).join("") : emptyState("還沒有專案。到「專案」頁建立第一個專案。");
+  }
+
+  // ---------- board ----------
+  let boardProject = "all", boardQuery = "";
+  function renderBoard() {
+    const sel = $("#board-project");
+    sel.innerHTML = `<option value="all">全部專案</option><option value="">未分類</option>` + list("projects").map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join("");
+    if (boardProject !== "all" && boardProject !== "" && !proj(boardProject)) boardProject = "all";
+    sel.value = boardProject;
+    const q = boardQuery.trim().toLowerCase();
+    const tasks = list("tasks").filter(t => (boardProject === "all" || (t.projectId || "") === boardProject) && (!q || t.title.toLowerCase().includes(q)));
+    $("#board").innerHTML = STATUS.map(([k, name]) => {
+      const ts = tasks.filter(t => t.status === k).sort(byUrgency);
+      return `<div class="col" data-col="${k}"><div class="col-h"><h2>${name}</h2><span class="count">${ts.length}</span></div>
+        <div class="cards">${ts.map(card).join("") || `<div class="empty" style="padding:12px">${loaded ? (k === "todo" ? "沒有待辦任務" : "把卡片拖到這裡") : "載入中…"}</div>`}</div></div>`;
+    }).join("");
+  }
+  function card(t) {
+    const logged = loggedFor(t.id), done = t.status === "done";
+    const pct = t.estimate ? Math.min(100, logged / t.estimate * 100) : 0;
+    const p = proj(t.projectId);
+    const idx = STATUS.findIndex(s => s[0] === t.status);
+    return `<article class="card ${done ? "done" : ""}" draggable="true" data-task="${t.id}" style="--pc:${projColor(t.projectId)}">
+      <div class="ct">${esc(t.title)}</div>
+      <div class="meta">${p ? `<span class="chip">${esc(p.name)}</span>` : ""}<span class="chip p-${t.priority}">優先 ${PRIO[t.priority] || "中"}</span>${dueChip(t.due, done)}${isExample(t) ? '<span class="chip example">範例</span>' : ""}</div>
+      ${t.estimate ? `<div class="time-bar ${logged > t.estimate ? "over" : ""}"><i style="width:${pct}%"></i></div>` : ""}
+      <div class="foot"><span class="num">${fmtMin(logged)}${t.estimate ? ` / ${fmtMin(t.estimate)}` : ""}</span>
+        <span>${idx > 0 ? `<button class="icon-btn" data-move="${t.id}" data-to="${STATUS[idx - 1][0]}" title="移到「${STATUS[idx - 1][1]}」">◀</button>` : ""}${!done ? `<button class="icon-btn" data-focus-task="${t.id}" title="開始專注">⏱</button>` : ""}${idx < 2 ? `<button class="icon-btn" data-move="${t.id}" data-to="${STATUS[idx + 1][0]}" title="移到「${STATUS[idx + 1][1]}」">▶</button>` : ""}</span></div>
+    </article>`;
+  }
+  $("#board-project").addEventListener("change", e => { boardProject = e.target.value; renderBoard(); });
+  $("#board-search").addEventListener("input", e => { boardQuery = e.target.value; renderBoard(); });
+  function setStatus(id, status) {
+    const t = S.tasks[id]; if (!t || t.status === status) return;
+    save("tasks", { ...t, status, doneAt: status === "done" ? today() : null });
+    if (status === "done") toast(`完成「${t.title}」`);
+  }
+  document.addEventListener("click", e => {
+    const m = e.target.closest("[data-move]"); if (m) { e.stopPropagation(); setStatus(m.dataset.move, m.dataset.to); return; }
+    const tg = e.target.closest("[data-toggle]"); if (tg) { const t = S.tasks[tg.dataset.toggle]; setStatus(t.id, t.status === "done" ? "todo" : "done"); return; }
+    const f = e.target.closest("[data-focus-task]"); if (f) { e.stopPropagation(); timer.taskId = f.dataset.focusTask; if (!timer.running) setMode("focus"); saveTimer(); setView("focus"); return; }
+    const c = e.target.closest(".card[data-task]"); if (c) openTask(c.dataset.task);
+  });
+  let dragId = null;
+  document.addEventListener("dragstart", e => { const c = e.target.closest?.(".card"); if (c) { dragId = c.dataset.task; e.dataTransfer.effectAllowed = "move"; } });
+  document.addEventListener("dragover", e => { const col = e.target.closest?.(".col"); if (col && dragId) { e.preventDefault(); $$(".col").forEach(x => x.classList.toggle("drag-over", x === col)); } });
+  document.addEventListener("dragleave", e => { if (!e.relatedTarget?.closest?.(".col")) $$(".col").forEach(x => x.classList.remove("drag-over")); });
+  document.addEventListener("drop", e => { const col = e.target.closest?.(".col"); $$(".col").forEach(x => x.classList.remove("drag-over")); if (col && dragId) { e.preventDefault(); setStatus(dragId, col.dataset.col); } dragId = null; });
+
+  // ---------- task dialog ----------
+  const taskDlg = $("#task-dlg");
+  let editingTask = null;
+  function projectOptions(selected) {
+    return `<option value="">未分類</option>` + list("projects").map(p => `<option value="${p.id}" ${p.id === selected ? "selected" : ""}>${esc(p.name)}</option>`).join("");
+  }
+  function openTask(id) {
+    const t = id ? S.tasks[id] : null; editingTask = t;
+    $("#task-dlg-title").textContent = t ? "編輯任務" : "新任務";
+    $("#f-title").value = t?.title || "";
+    $("#f-project").innerHTML = projectOptions(t ? t.projectId : (view === "board" && boardProject !== "all" ? boardProject : ""));
+    $("#f-status").value = t?.status || "todo";
+    $("#f-priority").value = t?.priority || "mid";
+    $("#f-due").value = t?.due || "";
+    $("#f-est").value = t?.estimate || "";
+    $("#f-notes").value = t?.notes || "";
+    disarm($("#task-del")); $("#task-del").hidden = !t;
+    taskDlg.showModal(); $("#f-title").focus();
+  }
+  $("#task-form").addEventListener("submit", e => {
+    e.preventDefault();
+    const title = $("#f-title").value.trim(); if (!title) return;
+    const status = $("#f-status").value;
+    const base = editingTask || { id: uid(), created: today() };
+    const t = { ...base, title, projectId: $("#f-project").value, status, priority: $("#f-priority").value,
+      due: $("#f-due").value || null, estimate: Number($("#f-est").value) || 0, notes: $("#f-notes").value.trim(),
+      doneAt: status === "done" ? (base.status === "done" ? base.doneAt : today()) : null };
+    if (editingTask && isExample(editingTask)) delete t.example;
+    save("tasks", t); taskDlg.close(); toast(editingTask ? "已更新任務" : "已新增任務");
+  });
+  function armable(btn, onConfirm, label) {
+    btn.addEventListener("click", () => {
+      if (btn.classList.contains("armed")) { onConfirm(); disarm(btn); }
+      else { btn.classList.add("armed"); btn.dataset.orig = btn.textContent; btn.textContent = label; }
+    });
+  }
+  function disarm(btn) { btn.classList.remove("armed"); if (btn.dataset.orig) btn.textContent = btn.dataset.orig; }
+  armable($("#task-del"), () => { if (editingTask) { remove("tasks", editingTask.id); taskDlg.close(); toast("已刪除任務"); } }, "確認刪除？");
+
+  // ---------- projects ----------
+  const projDlg = $("#proj-dlg");
+  let editingProj = null, pickColor = COLORS[0];
+  function renderProjects() {
+    const ps = list("projects"), tasks = list("tasks"), sessions = list("sessions"), t0 = today();
+    $("#proj-count").textContent = `共 ${ps.length} 個專案`;
+    $("#proj-cards").innerHTML = ps.length ? ps.sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999")).map(p => {
+      const pt = tasks.filter(t => t.projectId === p.id), done = pt.filter(t => t.status === "done").length;
+      const ids = new Set(pt.map(t => t.id));
+      const mins = sessions.filter(s => ids.has(s.taskId)).reduce((a, s) => a + s.minutes, 0);
+      const pct = pt.length ? Math.round(done / pt.length * 100) : 0;
+      const left = p.deadline ? diffDays(p.deadline, t0) : null;
+      let timeline = "";
+      if (p.start && p.deadline && p.deadline > p.start) {
+        const span = diffDays(p.deadline, p.start), gone = Math.max(0, Math.min(span, diffDays(t0, p.start)));
+        const tp = Math.round(gone / span * 100);
+        timeline = `<div><div class="label" style="display:flex;justify-content:space-between"><span>時程 ${tp}%</span><span>完成 ${pct}%</span></div>
+          <div class="bar" style="margin-top:4px"><i style="width:${tp}%;background:var(--muted);opacity:.5"></i></div>
+          <div class="bar" style="margin-top:3px"><i style="width:${pct}%;background:${p.color}"></i></div>
+          ${pct + 10 < tp && pct < 100 ? `<div style="font-size:12px;color:var(--warn);margin-top:4px">進度落後時程</div>` : ""}</div>`;
+      } else timeline = `<div class="bar"><i style="width:${pct}%;background:${p.color}"></i></div>`;
+      return `<article class="pcard" style="--pc:${p.color}">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:start"><h3>${esc(p.name)}</h3>${isExample(p) ? '<span class="chip example">範例</span>' : ""}</div>
+        ${p.desc ? `<div class="desc">${esc(p.desc)}</div>` : ""}
+        <div class="muted" style="font-size:13px">${p.start ? fmtDate(p.start) : "未設開始日"} → ${p.deadline ? fmtDate(p.deadline) : "未設截止日"}${left !== null ? ` · <b style="color:${left < 0 ? "var(--bad)" : left <= 7 ? "var(--warn)" : "inherit"}">${left < 0 ? `逾期 ${-left} 天` : left === 0 ? "今天截止" : `剩 ${left} 天`}</b>` : ""}</div>
+        ${timeline}
+        <div class="stats"><div><b>${done}/${pt.length}</b><span>任務完成</span></div><div><b>${fmtH(mins)}</b><span>投入小時</span></div><div><b>${pt.filter(t => t.status !== "done" && t.due && t.due < t0).length}</b><span>逾期任務</span></div></div>
+        <div class="acts"><button class="btn sm" data-proj-board="${p.id}">看任務</button><button class="btn sm" data-proj-edit="${p.id}">編輯</button></div>
+      </article>`;
+    }).join("") : `<div class="panel">${emptyState("還沒有專案。按「新專案」建立一個，設定截止日後就能追蹤進度是否落後。")}</div>`;
+  }
+  document.addEventListener("click", e => {
+    const b = e.target.closest("[data-proj-board]"); if (b) { boardProject = b.dataset.projBoard; setView("board"); }
+    const ed = e.target.closest("[data-proj-edit]"); if (ed) openProj(ed.dataset.projEdit);
+  });
+  $("#new-project").addEventListener("click", () => openProj(null));
+  function renderColors() {
+    $("#p-colors").innerHTML = COLORS.map(c => `<button type="button" style="background:${c}" data-color="${c}" aria-pressed="${c === pickColor}" aria-label="顏色 ${c}"></button>`).join("");
+  }
+  $("#p-colors").addEventListener("click", e => { const b = e.target.closest("[data-color]"); if (b) { pickColor = b.dataset.color; renderColors(); } });
+  function openProj(id) {
+    const p = id ? S.projects[id] : null; editingProj = p;
+    $("#proj-dlg-title").textContent = p ? "編輯專案" : "新專案";
+    $("#p-name").value = p?.name || ""; $("#p-desc").value = p?.desc || "";
+    $("#p-start").value = p?.start || (p ? "" : today()); $("#p-deadline").value = p?.deadline || "";
+    pickColor = p?.color || COLORS[list("projects").length % COLORS.length]; renderColors();
+    disarm($("#proj-del")); $("#proj-del").hidden = !p;
+    projDlg.showModal(); $("#p-name").focus();
+  }
+  $("#proj-form").addEventListener("submit", e => {
+    e.preventDefault();
+    const name = $("#p-name").value.trim(); if (!name) return;
+    const p = { ...(editingProj || { id: uid() }), name, desc: $("#p-desc").value.trim(), start: $("#p-start").value || null, deadline: $("#p-deadline").value || null, color: pickColor };
+    if (editingProj && isExample(editingProj)) delete p.example;
+    save("projects", p); projDlg.close(); toast(editingProj ? "已更新專案" : "已建立專案");
+  });
+  armable($("#proj-del"), async () => {
+    if (!editingProj) return;
+    const id = editingProj.id; projDlg.close();
+    for (const t of list("tasks").filter(t => t.projectId === id)) await save("tasks", { ...t, projectId: "" });
+    remove("projects", id); toast("已刪除專案，任務移到「未分類」");
+  }, "確認刪除？任務會保留");
+
+  // ---------- timer ----------
+  const timer = Object.assign({ mode: "focus", duration: 25 * 60, startedAt: null, elapsed: 0, running: false, taskId: "", rounds: 0 }, lsGet(LS_TIMER) || {});
+  function saveTimer() { lsSet(LS_TIMER, timer); }
+  const elapsedNow = () => timer.elapsed + (timer.running ? (Date.now() - timer.startedAt) / 1000 : 0);
+  function setMode(m) {
+    if (timer.running) return;
+    timer.mode = m; timer.duration = MODES[m] * 60; timer.elapsed = 0; timer.startedAt = null; saveTimer(); tick();
+  }
+  let audioCtx = null;
+  function beep() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      [0, .25, .5].forEach(t => { const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.frequency.value = 880; g.gain.setValueAtTime(.15, audioCtx.currentTime + t); g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + t + .2); o.connect(g).connect(audioCtx.destination); o.start(audioCtx.currentTime + t); o.stop(audioCtx.currentTime + t + .22); });
+    } catch {}
+  }
+  function logSession(minutes, taskId, note, date) {
+    minutes = Math.round(minutes); if (minutes < 1) return false;
+    const t = S.tasks[taskId];
+    save("sessions", { id: uid(), taskId: taskId || "", projectId: t?.projectId || "", minutes, date: date || today(), note: note || "", at: Date.now() });
+    return true;
+  }
+  function tick() {
+    const el = elapsedNow(), left = Math.max(0, timer.duration - el);
+    if (timer.running && left <= 0) {
+      timer.running = false; timer.elapsed = 0; timer.startedAt = null; beep();
+      if (timer.mode === "focus") {
+        logSession(timer.duration / 60, timer.taskId, "番茄鐘");
+        timer.rounds = (timer.rounds || 0) + 1;
+        toast(`完成一個番茄鐘，已記錄 ${timer.duration / 60} 分鐘。休息一下！`);
+        setMode(timer.rounds % 4 === 0 ? "long" : "short");
+      } else { toast("休息結束，準備下一輪專注。"); setMode("focus"); }
+      saveTimer(); render(); return;
+    }
+    const mm = Math.floor(Math.ceil(left) / 60), ss = Math.ceil(left) % 60;
+    const txt = `${pad(mm)}:${pad(ss)}`;
+    $("#clock").textContent = txt;
+    $("#ring-prg").setAttribute("stroke-dashoffset", (339.29 * (el / timer.duration)).toFixed(2));
+    $("#ring").classList.toggle("brk", timer.mode !== "focus");
+    $("#clock-sub").textContent = timer.running ? (timer.mode === "focus" ? "專注中" : "休息中") : (el > 0 ? "已暫停" : (timer.mode === "focus" ? "準備開始" : "休息時間"));
+    $("#t-start").textContent = timer.running ? "暫停" : (el > 0 ? "繼續" : "開始");
+    $("#t-log").hidden = timer.mode !== "focus";
+    $$("[data-mode]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.mode === timer.mode); b.disabled = timer.running; });
+    document.title = timer.running ? `${txt} · 節拍工作台` : "節拍工作台";
+  }
+  $$("[data-mode]").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
+  $("#t-start").addEventListener("click", () => {
+    if (timer.running) { timer.elapsed = elapsedNow(); timer.running = false; timer.startedAt = null; }
+    else { timer.running = true; timer.startedAt = Date.now(); try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); } catch {}
+      const t = S.tasks[timer.taskId]; if (t && t.status === "todo" && timer.mode === "focus") save("tasks", { ...t, status: "doing" }); }
+    saveTimer(); tick(); render();
+  });
+  $("#t-reset").addEventListener("click", () => { timer.running = false; setMode(timer.mode); render(); });
+  $("#t-log").addEventListener("click", () => {
+    const m = elapsedNow() / 60;
+    if (m < 1) { toast("專注不到 1 分鐘，沒有記錄。"); return; }
+    logSession(m, timer.taskId, "專注計時"); toast(`已記錄 ${Math.round(m)} 分鐘`);
+    timer.running = false; setMode("focus"); render();
+  });
+  $("#timer-task").addEventListener("change", e => { timer.taskId = e.target.value; saveTimer(); });
+  setInterval(() => { if (timer.running || view === "focus") tick(); }, 500);
+
+  function taskOptions(selected) {
+    const open = list("tasks").filter(t => t.status !== "done" || t.id === selected).sort(byUrgency);
+    return `<option value="">（不指定任務）</option>` + open.map(t => `<option value="${t.id}" ${t.id === selected ? "selected" : ""}>${esc(t.title)}${proj(t.projectId) ? ` — ${esc(proj(t.projectId).name)}` : ""}</option>`).join("");
+  }
+  function renderFocusLists() {
+    if (timer.taskId && !S.tasks[timer.taskId] && loaded) timer.taskId = "";
+    $("#timer-task").innerHTML = taskOptions(timer.taskId);
+    const mt = $("#m-task"), keep = mt.value; mt.innerHTML = taskOptions(keep);
+    if (!$("#m-date").value) $("#m-date").value = today();
+    const ss = list("sessions").sort((a, b) => b.date.localeCompare(a.date) || (b.at || 0) - (a.at || 0)).slice(0, 15);
+    const t0 = today();
+    const todayMin = list("sessions").filter(s => s.date === t0).reduce((a, s) => a + s.minutes, 0);
+    const pomos = list("sessions").filter(s => s.date === t0 && s.note === "番茄鐘").length;
+    $("#pomo-dots").innerHTML = [...Array(Math.max(4, pomos))].map((_, i) => `<i class="${i < pomos ? "on" : ""}"></i>`).join("") + `<span class="label" style="margin-left:4px">今日 ${pomos} 個番茄鐘</span>`;
+    $("#log-today").textContent = `今日 ${fmtMin(todayMin)}`;
+    $("#log-list").innerHTML = ss.length ? ss.map(s => {
+      const t = S.tasks[s.taskId], p = proj(s.projectId);
+      return `<div class="row"><span class="swatch" style="background:${p ? p.color : "var(--line)"}"></span>
+        <div style="min-width:0"><div class="t">${t ? esc(t.title) : "未指定任務"}</div><div class="sub">${fmtDate(s.date)}${s.note ? ` · ${esc(s.note)}` : ""}${isExample(s) ? " · 範例" : ""}</div></div>
+        <div style="display:flex;gap:4px;align-items:center"><span class="num">${s.minutes}m</span><button class="icon-btn" data-del-session="${s.id}" aria-label="刪除這筆紀錄">✕</button></div></div>`;
+    }).join("") : emptyState("還沒有時間紀錄。開始一個番茄鐘，或在上方手動記錄。");
+  }
+  document.addEventListener("click", e => {
+    const d = e.target.closest("[data-del-session]");
+    if (d) { if (d.classList.contains("armed")) remove("sessions", d.dataset.delSession); else { d.classList.add("armed"); d.textContent = "刪除？"; d.style.color = "var(--bad)"; } }
+  });
+  $("#manual-form").addEventListener("submit", e => {
+    e.preventDefault();
+    const m = Number($("#m-min").value);
+    if (!(m >= 1)) { toast("請輸入至少 1 分鐘。"); return; }
+    if (logSession(m, $("#m-task").value, $("#m-note").value.trim(), $("#m-date").value)) { $("#m-note").value = ""; toast(`已記錄 ${m} 分鐘`); }
+  });
+
+  // ---------- toast ----------
+  let toastT;
+  function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2800); }
+
+  setView(view); tick(); initStore();
+})();
+</script>
