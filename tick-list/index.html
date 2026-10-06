@@ -1,8 +1,8 @@
-<title>勾勾清單</title>
+<title>Tally</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
 /* Layout: four columns like a desktop task app (nav rail · lists · tasks · detail); on phones the rail becomes a bottom bar, lists slide in as a drawer, detail opens as a sheet. */
 :root {
@@ -274,7 +274,7 @@ dialog h2 { margin: 0; font-size: 17px; }
 </style>
 
 <div class="app" id="app">
-  <nav class="rail" aria-label="主要功能">
+  <nav class="rail" aria-label="Main">
     <div class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4 4 10-10"/></svg></div>
     <button class="rail-btn" data-go="tasks" id="go-tasks"></button>
     <button class="rail-btn" data-go="calendar" id="go-calendar"></button>
@@ -283,20 +283,20 @@ dialog h2 { margin: 0; font-size: 17px; }
     <button class="rail-btn" data-go="habits" id="go-habits"></button>
   </nav>
 
-  <aside class="side" id="side" aria-label="清單"></aside>
+  <aside class="side" id="side" aria-label="Lists"></aside>
 
   <main class="main" id="main">
     <!-- Tasks -->
     <section class="view" id="view-tasks" hidden>
       <div class="vh">
-        <button class="icon-btn menu-btn" data-open-side aria-label="開啟清單選單"></button>
-        <h1 id="list-title">今天</h1>
-        <button class="icon-btn" id="toggle-done" title="顯示或隱藏已完成"></button>
+        <button class="icon-btn menu-btn" data-open-side aria-label="Open lists"></button>
+        <h1 id="list-title">Today</h1>
+        <button class="icon-btn" id="toggle-done" title="Show or hide completed tasks"></button>
       </div>
       <div>
         <form class="qa" id="qa-form" autocomplete="off">
           <span id="qa-ic"></span>
-          <input id="qa" type="text" placeholder="新增任務，例如：明天下午3點 交報告 #學校 !高" aria-label="新增任務">
+          <input id="qa" type="text" placeholder="Add a task, e.g. Submit report tomorrow 3pm #school !high" aria-label="Add a task">
         </form>
         <div class="qa-hint" id="qa-hint"></div>
       </div>
@@ -308,9 +308,9 @@ dialog h2 { margin: 0; font-size: 17px; }
       <div class="vh">
         <h1 id="cal-title"></h1>
         <div class="cal-nav">
-          <button class="icon-btn" id="cal-prev" aria-label="上個月"></button>
-          <button class="btn" id="cal-today">今天</button>
-          <button class="icon-btn" id="cal-next" aria-label="下個月"></button>
+          <button class="icon-btn" id="cal-prev" aria-label="Previous month"></button>
+          <button class="btn" id="cal-today">Today</button>
+          <button class="icon-btn" id="cal-next" aria-label="Next month"></button>
         </div>
       </div>
       <div class="cal"><div class="cal-grid" id="cal-grid"></div></div>
@@ -318,7 +318,7 @@ dialog h2 { margin: 0; font-size: 17px; }
         <div class="vh"><h1 id="agenda-title" style="font-size:16px"></h1></div>
         <form class="qa" id="cal-qa-form" autocomplete="off">
           <span class="qa-ic"></span>
-          <input id="cal-qa" type="text" placeholder="新增任務到這一天" aria-label="新增任務到選取的日期">
+          <input id="cal-qa" type="text" placeholder="Add a task to this day" aria-label="Add a task to the selected day">
         </form>
         <div id="agenda-list"></div>
       </div>
@@ -326,74 +326,74 @@ dialog h2 { margin: 0; font-size: 17px; }
 
     <!-- Matrix -->
     <section class="view" id="view-matrix" hidden>
-      <div class="vh"><h1>四象限</h1><span class="muted" style="font-size:12.5px">依優先度分類，可拖曳任務到其他象限</span></div>
+      <div class="vh"><h1>Eisenhower Matrix</h1><span class="muted" style="font-size:12.5px">Sorted by priority. Drag a task to another quadrant.</span></div>
       <div class="matrix" id="matrix">
-        <div class="quad" data-quad="3" style="--qc:var(--p3)"><div class="quad-h">緊急且重要<small data-qcount="3"></small></div><div class="qlist" data-qlist="3"></div><form class="qa" data-qa-prio="3" autocomplete="off"><input id="qa-q3" type="text" placeholder="＋ 新增" aria-label="新增到緊急且重要"></form></div>
-        <div class="quad" data-quad="2" style="--qc:var(--p2)"><div class="quad-h">重要不緊急<small data-qcount="2"></small></div><div class="qlist" data-qlist="2"></div><form class="qa" data-qa-prio="2" autocomplete="off"><input id="qa-q2" type="text" placeholder="＋ 新增" aria-label="新增到重要不緊急"></form></div>
-        <div class="quad" data-quad="1" style="--qc:var(--p1)"><div class="quad-h">緊急不重要<small data-qcount="1"></small></div><div class="qlist" data-qlist="1"></div><form class="qa" data-qa-prio="1" autocomplete="off"><input id="qa-q1" type="text" placeholder="＋ 新增" aria-label="新增到緊急不重要"></form></div>
-        <div class="quad" data-quad="0" style="--qc:var(--muted)"><div class="quad-h">不緊急不重要<small data-qcount="0"></small></div><div class="qlist" data-qlist="0"></div><form class="qa" data-qa-prio="0" autocomplete="off"><input id="qa-q0" type="text" placeholder="＋ 新增" aria-label="新增到不緊急不重要"></form></div>
+        <div class="quad" data-quad="3" style="--qc:var(--p3)"><div class="quad-h">Urgent &amp; important<small data-qcount="3"></small></div><div class="qlist" data-qlist="3"></div><form class="qa" data-qa-prio="3" autocomplete="off"><input id="qa-q3" type="text" placeholder="+ Add" aria-label="Add to urgent and important"></form></div>
+        <div class="quad" data-quad="2" style="--qc:var(--p2)"><div class="quad-h">Important, not urgent<small data-qcount="2"></small></div><div class="qlist" data-qlist="2"></div><form class="qa" data-qa-prio="2" autocomplete="off"><input id="qa-q2" type="text" placeholder="+ Add" aria-label="Add to important, not urgent"></form></div>
+        <div class="quad" data-quad="1" style="--qc:var(--p1)"><div class="quad-h">Urgent, not important<small data-qcount="1"></small></div><div class="qlist" data-qlist="1"></div><form class="qa" data-qa-prio="1" autocomplete="off"><input id="qa-q1" type="text" placeholder="+ Add" aria-label="Add to urgent, not important"></form></div>
+        <div class="quad" data-quad="0" style="--qc:var(--muted)"><div class="quad-h">Neither<small data-qcount="0"></small></div><div class="qlist" data-qlist="0"></div><form class="qa" data-qa-prio="0" autocomplete="off"><input id="qa-q0" type="text" placeholder="+ Add" aria-label="Add to neither urgent nor important"></form></div>
       </div>
     </section>
 
     <!-- Focus -->
     <section class="view" id="view-focus" hidden>
-      <div class="vh"><h1>番茄專注</h1></div>
+      <div class="vh"><h1>Pomodoro</h1></div>
       <div class="focus-grid">
         <div class="panel timer">
-          <div class="seg" role="group" aria-label="計時模式">
-            <button data-mode="pomo" id="mode-pomo">番茄 25</button>
-            <button data-mode="short" id="mode-short">短休 5</button>
-            <button data-mode="long" id="mode-long">長休 15</button>
+          <div class="seg" role="group" aria-label="Timer mode">
+            <button data-mode="pomo" id="mode-pomo">Focus 25</button>
+            <button data-mode="short" id="mode-short">Short 5</button>
+            <button data-mode="long" id="mode-long">Long 15</button>
           </div>
           <div class="ring" id="ring">
             <svg viewBox="0 0 120 120" aria-hidden="true">
               <circle class="trk" cx="60" cy="60" r="54" fill="none" stroke-width="6"></circle>
               <circle class="prg" id="ring-prg" cx="60" cy="60" r="54" fill="none" stroke-width="6" stroke-linecap="round" stroke-dasharray="339.29" stroke-dashoffset="0"></circle>
             </svg>
-            <div class="center"><div class="clock" id="clock">25:00</div><div class="clock-sub" id="clock-sub">準備開始</div></div>
+            <div class="center"><div class="clock" id="clock">25:00</div><div class="clock-sub" id="clock-sub">Ready</div></div>
           </div>
-          <div class="field" style="width:min(300px,100%)"><label for="timer-task">專注在</label><select id="timer-task"></select></div>
+          <div class="field" style="width:min(300px,100%)"><label for="timer-task">Focusing on</label><select id="timer-task"></select></div>
           <div class="timer-ctrl">
-            <button class="btn primary big" id="t-start">開始</button>
-            <button class="btn big" id="t-stop">放棄</button>
+            <button class="btn primary big" id="t-start">Start</button>
+            <button class="btn big" id="t-stop">Abandon</button>
           </div>
         </div>
         <div style="display:grid;gap:16px;min-width:0">
           <div class="panel"><div class="stats3" id="focus-stats"></div></div>
-          <div class="panel"><div class="d-label" style="margin-bottom:6px">專注紀錄</div><div id="focus-log"></div></div>
+          <div class="panel"><div class="d-label" style="margin-bottom:6px">Focus log</div><div id="focus-log"></div></div>
         </div>
       </div>
     </section>
 
     <!-- Habits -->
     <section class="view" id="view-habits" hidden>
-      <div class="vh"><h1>習慣打卡</h1><span class="muted num" id="habit-date"></span></div>
+      <div class="vh"><h1>Habits</h1><span class="muted num" id="habit-date"></span></div>
       <form class="qa" id="habit-form" autocomplete="off">
         <span class="qa-ic"></span>
-        <input id="habit-new" type="text" placeholder="新增習慣，例如：喝 2000cc 水" aria-label="新增習慣" maxlength="60">
+        <input id="habit-new" type="text" placeholder="Add a habit, e.g. Drink 2 L of water" aria-label="Add a habit" maxlength="60">
       </form>
       <div class="habits" id="habit-list"></div>
     </section>
   </main>
 
-  <section class="detail" id="detail" aria-label="任務詳情"></section>
+  <section class="detail" id="detail" aria-label="Task details"></section>
 </div>
 <div class="scrim" id="scrim" hidden></div>
 
 <dialog id="list-dlg">
   <form id="list-form">
-    <h2 id="list-dlg-title">新增清單</h2>
-    <div class="field"><label for="l-name">清單名稱</label><input class="input" id="l-name" type="text" required maxlength="40"></div>
-    <div class="field"><label>顏色</label><div class="colors" id="l-colors"></div></div>
-    <div class="dlg-actions"><button type="button" class="btn danger" id="l-del">刪除清單</button><div class="r"><button type="button" class="btn" data-close>取消</button><button class="btn primary" type="submit">儲存</button></div></div>
+    <h2 id="list-dlg-title">New list</h2>
+    <div class="field"><label for="l-name">Name</label><input class="input" id="l-name" type="text" required maxlength="40"></div>
+    <div class="field"><label>Color</label><div class="colors" id="l-colors"></div></div>
+    <div class="dlg-actions"><button type="button" class="btn danger" id="l-del">Delete list</button><div class="r"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary" type="submit">Save</button></div></div>
   </form>
 </dialog>
 <dialog id="habit-dlg">
   <form id="habit-edit-form">
-    <h2>編輯習慣</h2>
-    <div class="field"><label for="h-name">習慣名稱</label><input class="input" id="h-name" type="text" required maxlength="60"></div>
-    <div class="field"><label>顏色</label><div class="colors" id="h-colors"></div></div>
-    <div class="dlg-actions"><button type="button" class="btn danger" id="h-del">刪除習慣</button><div class="r"><button type="button" class="btn" data-close>取消</button><button class="btn primary" type="submit">儲存</button></div></div>
+    <h2>Edit habit</h2>
+    <div class="field"><label for="h-name">Name</label><input class="input" id="h-name" type="text" required maxlength="60"></div>
+    <div class="field"><label>Color</label><div class="colors" id="h-colors"></div></div>
+    <div class="dlg-actions"><button type="button" class="btn danger" id="h-del">Delete habit</button><div class="r"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary" type="submit">Save</button></div></div>
   </form>
 </dialog>
 <div class="toast" id="toast" hidden><span id="toast-msg"></span><button id="toast-act" hidden></button></div>
@@ -402,11 +402,13 @@ dialog h2 { margin: 0; font-size: 17px; }
 (() => {
   const LS_DATA = "tick-data-v1", LS_UI = "tick-ui-v1", LS_TIMER = "tick-timer-v1";
   const COLORS = ["#13795b", "#3b7bd6", "#d6453d", "#db8f12", "#8b5cc4", "#c2477e", "#2b8c95", "#6b7570"];
-  const PRI = [{ v: 3, n: "高", c: "var(--p3)" }, { v: 2, n: "中", c: "var(--p2)" }, { v: 1, n: "低", c: "var(--p1)" }, { v: 0, n: "無", c: "var(--p0)" }];
+  const PRI = [{ v: 3, n: "High", c: "var(--p3)" }, { v: 2, n: "Medium", c: "var(--p2)" }, { v: 1, n: "Low", c: "var(--p1)" }, { v: 0, n: "None", c: "var(--p0)" }];
   const priColor = v => ["var(--p0)", "var(--p1)", "var(--p2)", "var(--p3)"][v || 0];
-  const REPEAT = { "": "不重複", daily: "每天", weekdays: "每個工作日", weekly: "每週", monthly: "每月", yearly: "每年" };
+  const REPEAT = { "": "Does not repeat", daily: "Daily", weekdays: "Every weekday", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly" };
   const MODES = { pomo: 25, short: 5, long: 15 };
-  const WD = ["日", "一", "二", "三", "四", "五", "六"];
+  const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const MO = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
   // ---------- icons ----------
   const I = {
@@ -421,13 +423,12 @@ dialog h2 { margin: 0; font-size: 17px; }
     week: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4M10 13.5h4l-2.5 4.5"/>',
     all: '<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>',
     done: '<circle cx="12" cy="12" r="8.5"/><path d="m8 12 3 3 5-6"/>',
-    list: '<path d="M5 6h14M5 12h14M5 18h9"/>',
     tag: '<path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1.5 1.5 0 0 1 0 2.1l-6.2 6.2a1.5 1.5 0 0 1-2.1 0z"/><path d="M8 8h.01"/>',
     plus: '<path d="M12 5v14M5 12h14"/>', menu: '<path d="M4 7h16M4 12h16M4 17h16"/>', x: '<path d="m6 6 12 12M18 6 6 18"/>',
     trash: '<path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/>', flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
     repeat: '<path d="m17 3 3 3-3 3M4 11V9a3 3 0 0 1 3-3h13M7 21l-3-3 3-3M20 13v2a3 3 0 0 1-3 3H4"/>',
     back: '<path d="M15 5 8 12l7 7"/>', left: '<path d="M15 6l-6 6 6 6"/>', right: '<path d="m9 6 6 6-6 6"/>',
-    edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>', check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>', eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/>',
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>', eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/>',
     note: '<path d="M6 3.5h9l3.5 3.5v13.5H6z"/><path d="M9 11h6M9 15h6"/>', sub: '<path d="M5 4v9a3 3 0 0 0 3 3h11M15 12l4 4-4 4"/>',
   };
   const ic = (n, s = 18, w = 1.8) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
@@ -446,12 +447,15 @@ dialog h2 { margin: 0; font-size: 17px; }
   const parseD = s => new Date(s + "T00:00:00");
   const addDays = (s, n) => { const d = parseD(s); d.setDate(d.getDate() + n); return ymd(d); };
   const diffDays = (a, b) => Math.round((parseD(a) - parseD(b)) / 864e5);
-  const fmtMD = s => { const d = parseD(s); return `${d.getMonth() + 1}月${d.getDate()}日`; };
+  const fmtMD = s => { const d = parseD(s); return `${MO[d.getMonth()]} ${d.getDate()}`; };
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  function fmtTime(hm) { if (!hm) return ""; let [h, m] = hm.split(":").map(Number); const ap = h < 12 ? "AM" : "PM"; h = h % 12 || 12; return `${h}:${pad(m)} ${ap}`; }
   function fmtDue(t) {
     if (!t.due) return "";
-    const d = diffDays(t.due, today());
-    let s = d === 0 ? "今天" : d === 1 ? "明天" : d === -1 ? "昨天" : d > 1 && d < 7 ? "週" + WD[parseD(t.due).getDay()] : (() => { const x = parseD(t.due); return (x.getFullYear() !== new Date().getFullYear() ? x.getFullYear() + "/" : "") + (x.getMonth() + 1) + "/" + x.getDate(); })();
-    return t.time ? `${s} ${t.time}` : s;
+    const d = diffDays(t.due, today()), x = parseD(t.due);
+    const s = d === 0 ? "Today" : d === 1 ? "Tomorrow" : d === -1 ? "Yesterday" : d > 1 && d < 7 ? WD[x.getDay()]
+      : `${MO[x.getMonth()]} ${x.getDate()}${x.getFullYear() !== new Date().getFullYear() ? ", " + x.getFullYear() : ""}`;
+    return t.time ? `${s}, ${fmtTime(t.time)}` : s;
   }
   function nextDue(due, rep) {
     const d = parseD(due);
@@ -469,7 +473,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   // ---------- store ----------
   const S = { lists: {}, tasks: {}, habits: {}, focus: {} };
   const COLLS = Object.keys(S);
-  let db = null, loaded = false;
+  let db = null, loaded = false, syncNote = "";
   const all = c => Object.values(S[c]);
   const pend = {}, pendT = {};
 
@@ -479,12 +483,12 @@ dialog h2 { margin: 0; font-size: 17px; }
     if (db) {
       const { id, ...body } = obj;
       try { await db.collection(coll).doc(id).set(body); }
-      catch (e) { toast(e?.code === "quota_exceeded" ? "儲存空間已滿，刪除一些已完成的任務後再試。" : "儲存失敗，請檢查網路後重試。"); }
+      catch (e) { toast(e?.code === "quota_exceeded" ? "Storage is full. Delete some completed tasks and try again." : "Couldn't save. Check your connection and try again."); }
     } else persistLocal();
   }
   async function remove(coll, id) {
     delete S[coll][id]; render();
-    if (db) { try { await db.collection(coll).doc(id).delete(); } catch { toast("刪除失敗，請稍後重試。"); } }
+    if (db) { try { await db.collection(coll).doc(id).delete(); } catch { toast("Couldn't delete. Try again in a moment."); } }
     else persistLocal();
   }
   function patchTask(id, patch, delay = 0) {
@@ -503,9 +507,9 @@ dialog h2 { margin: 0; font-size: 17px; }
     try { if (window.claude?.use) ns = await window.claude.use("db"); } catch { ns = null; }
     if (!ns) {
       const d = lsGet(LS_DATA); if (d) COLLS.forEach(c => S[c] = d[c] || {});
-      loaded = true; syncNote = "資料儲存在這個瀏覽器。"; render(); return;
+      loaded = true; syncNote = "Saved in this browser."; render(); return;
     }
-    db = ns; syncNote = "已同步到雲端，換裝置開啟也看得到。";
+    db = ns; syncNote = "Synced to the cloud. Open it on any device.";
     let waiting = COLLS.length;
     COLLS.forEach(c => {
       let first = true;
@@ -516,10 +520,9 @@ dialog h2 { margin: 0; font-size: 17px; }
         S[c] = next;
         if (first) { first = false; if (--waiting === 0) loaded = true; }
         render();
-      }, err => { if (err?.code !== "revoked") toast("同步中斷，請重新整理頁面。"); });
+      }, err => { if (err?.code !== "revoked") toast("Sync stopped. Reload the page to reconnect."); });
     });
   }
-  let syncNote = "";
 
   // ---------- UI state ----------
   const ui = Object.assign({ view: "tasks", nav: "today", showDone: true, calMonth: null, calDay: null }, lsGet(LS_UI) || {});
@@ -528,48 +531,74 @@ dialog h2 { margin: 0; font-size: 17px; }
   const saveUI = () => lsSet(LS_UI, { view: ui.view, nav: ui.nav, showDone: ui.showDone });
 
   // ---------- quick add parsing ----------
-  const CNW = { "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "日": 0, "天": 0 };
+  const DOW = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+  const dowOf = w => DOW[w.slice(0, 3).toLowerCase()];
+  const MONRE = "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+  const monOf = w => ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"].indexOf(w.slice(0, 3).toLowerCase()) + 1;
+  const FULLDAY = "(sunday|monday|tuesday|wednesday|thursday|friday|saturday)";
+  const SHORTDAY = "(sun|mon|tues?|wed|thu(?:rs?)?|fri|sat)";
   function mdNext(M, D) {
-    const t0 = today(); let y = new Date().getFullYear();
-    let s = ymd(new Date(y, M - 1, D)); if (s < t0) s = ymd(new Date(y + 1, M - 1, D)); return s;
+    const y = new Date().getFullYear(); let s = ymd(new Date(y, M - 1, D));
+    if (s < today()) s = ymd(new Date(y + 1, M - 1, D)); return s;
+  }
+  function upcoming(dow, next) {
+    const t0 = today(), cur = new Date().getDay();
+    if (next) { const mon = addDays(t0, 7 - ((cur + 6) % 7)); return addDays(mon, (dow + 6) % 7); }
+    return addDays(t0, (dow - cur + 7) % 7);
   }
   function parseQuick(raw) {
+    const MK = "\u0001";
     let s = " " + raw + " ";
     const r = { tags: [], tokens: [] };
-    const t0 = today(), now = new Date();
+    const t0 = today();
+    const take = (re, fn) => { const m = s.match(re); if (!m) return false; if (fn(m) === false) return false; s = s.replace(m[0], " " + MK + " "); return true; };
     s = s.replace(/\s#([^\s#!^]+)/g, (m, t) => { r.tags.push(t); r.tokens.push("#" + t); return " "; });
-    s = s.replace(/\s!(高|中|低|[123])(?=\s)/, (m, v) => { r.priority = { "高": 3, "中": 2, "低": 1, "1": 3, "2": 2, "3": 1 }[v]; r.tokens.push("優先度 " + PRI.find(p => p.v === r.priority).n); return " "; });
-    s = s.replace(/\s\^([^\s]+)/, (m, n) => { const l = all("lists").find(l => l.name === n); if (!l) return m; r.listId = l.id; r.tokens.push("清單 " + l.name); return " "; });
-    let m, evening = false;
-    if ((m = s.match(/每天|每日|每個?工作日|每週|每周|每星期|每月|每年/))) {
-      r.repeat = /工作日/.test(m[0]) ? "weekdays" : /天|日/.test(m[0]) ? "daily" : /月/.test(m[0]) ? "monthly" : /年/.test(m[0]) ? "yearly" : "weekly";
-      s = s.replace(m[0], " "); r.tokens.push(REPEAT[r.repeat]);
+    s = s.replace(/\s!(high|hi|medium|med|low|lo|[123])(?=\s)/i, (m, v) => {
+      v = v.toLowerCase(); r.priority = v.startsWith("h") || v === "1" ? 3 : v.startsWith("m") || v === "2" ? 2 : 1;
+      r.tokens.push(PRI.find(p => p.v === r.priority).n + " priority"); return " ";
+    });
+    s = s.replace(/\s\^(\S+)/, (m, n) => { const l = all("lists").find(l => l.name.toLowerCase() === n.toLowerCase()); if (!l) return m; r.listId = l.id; r.tokens.push("List: " + l.name); return " "; });
+    let evening = false;
+    take(new RegExp("\\bevery\\s+(day|weekday|week|month|year|" + FULLDAY.slice(1, -1) + "|" + SHORTDAY.slice(1, -1) + ")\\b|\\b(daily|weekly|monthly|yearly|weekdays)\\b", "i"), m => {
+      const w = (m[1] || m[2]).toLowerCase();
+      if (w === "day" || w === "daily") r.repeat = "daily";
+      else if (w.startsWith("weekday")) r.repeat = "weekdays";
+      else if (w === "week" || w === "weekly") r.repeat = "weekly";
+      else if (w === "month" || w === "monthly") r.repeat = "monthly";
+      else if (w === "year" || w === "yearly") r.repeat = "yearly";
+      else { r.repeat = "weekly"; r.due = upcoming(dowOf(w)); }
+      r.tokens.push(REPEAT[r.repeat]);
+    });
+    if (!r.due) {
+      take(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/, m => { r.due = ymd(new Date(+m[1], m[2] - 1, +m[3])); })
+      || take(/(?:^|\s)(\d{1,2})\/(\d{1,2})(?=\s)/, m => { if (+m[1] > 12 || +m[2] > 31) return false; r.due = mdNext(+m[1], +m[2]); })
+      || take(new RegExp("\\b" + MONRE + "\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b", "i"), m => { r.due = mdNext(monOf(m[1]), +m[2]); })
+      || take(new RegExp("\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+" + MONRE + "\\b", "i"), m => { r.due = mdNext(monOf(m[2]), +m[1]); })
+      || take(/\b(?:the\s+)?day\s+after\s+tomorrow\b/i, () => { r.due = addDays(t0, 2); })
+      || take(/\b(today|tonight|tomorrow|tmrw?)\b/i, m => { const w = m[1].toLowerCase(); r.due = w.startsWith("t") && w !== "today" && w !== "tonight" ? addDays(t0, 1) : t0; evening = w === "tonight"; })
+      || take(/\bnext\s+week\b/i, () => { r.due = upcoming(1, true); })
+      || take(/\bin\s+(\d{1,3})\s+days?\b/i, m => { r.due = addDays(t0, +m[1]); })
+      || take(/\bin\s+(\d{1,2})\s+weeks?\b/i, m => { r.due = addDays(t0, 7 * m[1]); })
+      || take(new RegExp("\\b(?:(next|this)\\s+)?" + FULLDAY + "\\b", "i"), m => { r.due = upcoming(dowOf(m[2]), /next/i.test(m[1] || "")); })
+      || take(new RegExp("\\b(next|this|on|by)\\s+" + SHORTDAY + "\\b", "i"), m => { r.due = upcoming(dowOf(m[2]), /next/i.test(m[1])); });
     }
-    if ((m = s.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/))) r.due = ymd(new Date(+m[1], m[2] - 1, +m[3]));
-    else if ((m = s.match(/(\d{1,2})月(\d{1,2})[日號号]?/))) r.due = mdNext(+m[1], +m[2]);
-    else if ((m = s.match(/\s(\d{1,2})\/(\d{1,2})(?=\s)/))) r.due = mdNext(+m[1], +m[2]);
-    else if ((m = s.match(/大後天|後天|明天|今天|今晚|明晚|明早|今早/))) {
-      const w = m[0]; r.due = addDays(t0, w === "大後天" ? 3 : w === "後天" ? 2 : w.startsWith("明") ? 1 : 0); evening = /晚/.test(w);
-    } else if ((m = s.match(/(下|這|本)?(?:週|周|星期|禮拜)([一二三四五六日天])/))) {
-      const target = CNW[m[2]], dow = now.getDay();
-      if (m[1] === "下") { const mon = addDays(t0, 7 - ((dow + 6) % 7)); r.due = addDays(mon, (target + 6) % 7); }
-      else r.due = addDays(t0, (target - dow + 7) % 7);
-    } else if ((m = s.match(/(\d{1,2})天後/))) r.due = addDays(t0, +m[1]);
-    if (m && r.due) s = s.replace(m[0], " ");
-    const tm = s.match(/(上午|早上|中午|下午|晚上)?\s?(\d{1,2})(?:[:：](\d{2})|[點点](半|\d{1,2}分?)?)/);
-    if (tm) {
-      let h = +tm[2], mi = tm[3] ? +tm[3] : tm[4] === "半" ? 30 : tm[4] ? parseInt(tm[4]) : 0;
-      if (/下午|晚上/.test(tm[1] || "") || (evening && !tm[1])) { if (h < 12) h += 12; }
-      if (tm[1] === "中午" && h < 6) h += 12;
-      if (h < 24 && mi < 60) { r.time = `${pad(h)}:${pad(mi)}`; s = s.replace(tm[0], " "); if (!r.due) r.due = t0; }
-    }
+    const setTime = (h, mi) => { if (h > 23 || mi > 59) return false; r.time = `${pad(h)}:${pad(mi)}`; if (!r.due) r.due = t0; };
+    take(/\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)(?=[\s,.]|$)/i, m => {
+      let h = +m[1]; if (h > 12 || h === 0) return false;
+      const pm = /p/i.test(m[3]); if (pm && h < 12) h += 12; if (!pm && h === 12) h = 0;
+      return setTime(h, +(m[2] || 0));
+    })
+    || take(/\b(?:at\s+)?([01]?\d|2[0-3]):([0-5]\d)\b/, m => { let h = +m[1]; if (evening && h < 12) h += 12; return setTime(h, +m[2]); })
+    || take(/\b(?:at\s+)?(noon|midnight)\b/i, m => setTime(/noon/i.test(m[1]) ? 12 : 0, 0))
+    || (evening && take(/\bat\s+(\d{1,2})\b/i, m => { const h = +m[1]; return h >= 1 && h <= 11 ? setTime(h + 12, 0) : false; }));
     if (r.repeat && !r.due) r.due = t0;
     if (r.due) r.tokens.unshift(fmtDue({ due: r.due, time: r.time }));
+    s = s.replace(new RegExp("\\b(on|at|by|due|for|in)\\s*" + MK, "gi"), MK).split(MK).join(" ");
     r.title = s.replace(/\s+/g, " ").trim();
     return r;
   }
   function createTask(raw, defaults = {}) {
-    const p = parseQuick(raw); if (!p.title) { toast("請輸入任務名稱。"); return null; }
+    const p = parseQuick(raw); if (!p.title) { toast("Type a name for the task."); return null; }
     const t = { id: uid(), title: p.title, notes: "", listId: p.listId || defaults.listId || "inbox",
       due: p.due ?? defaults.due ?? null, time: p.time || null, priority: p.priority ?? defaults.priority ?? 0,
       tags: [...new Set([...(defaults.tags || []), ...p.tags])], subtasks: [], repeat: p.repeat || "",
@@ -578,10 +607,10 @@ dialog h2 { margin: 0; font-size: 17px; }
   }
 
   // ---------- nav model ----------
-  const SMART = [["inbox", "收件匣", "inbox"], ["today", "今天", "today"], ["tomorrow", "明天", "tomorrow"], ["week", "最近 7 天", "week"], ["all", "所有任務", "all"]];
+  const SMART = [["inbox", "Inbox", "inbox"], ["today", "Today", "today"], ["tomorrow", "Tomorrow", "tomorrow"], ["week", "Next 7 Days", "week"], ["all", "All Tasks", "all"]];
   function navInfo(key) {
     const s = SMART.find(x => x[0] === key); if (s) return { name: s[1] };
-    if (key === "done") return { name: "已完成" };
+    if (key === "done") return { name: "Completed" };
     if (key.startsWith("list:")) { const l = S.lists[key.slice(5)]; return l ? { name: l.name, color: l.color } : null; }
     if (key.startsWith("tag:")) return { name: "#" + key.slice(4) };
     return null;
@@ -611,7 +640,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     const d = diffDays(t.due, today());
     return d < 0 ? "overdue" : d === 0 ? "today" : d === 1 ? "tomorrow" : d <= 7 ? "week" : "later";
   }
-  const GROUPS = [["overdue", "已逾期"], ["today", "今天"], ["tomorrow", "明天"], ["week", "未來 7 天"], ["later", "更晚"], ["none", "沒有日期"]];
+  const GROUPS = [["overdue", "Overdue"], ["today", "Today"], ["tomorrow", "Tomorrow"], ["week", "Next 7 days"], ["later", "Later"], ["none", "No date"]];
 
   // ---------- render ----------
   function render(opts = {}) {
@@ -619,8 +648,8 @@ dialog h2 { margin: 0; font-size: 17px; }
     renderRail();
     $$(".view").forEach(v => v.hidden = v.id !== "view-" + ui.view);
     $("#side").classList.toggle("hidden-wide", ui.view !== "tasks");
-    if (ui.view === "tasks") { renderSide(); renderTasks(); }
-    else renderSide();
+    renderSide();
+    if (ui.view === "tasks") renderTasks();
     if (ui.view === "calendar") renderCalendar();
     if (ui.view === "matrix") renderMatrix();
     if (ui.view === "focus") renderFocus();
@@ -633,10 +662,10 @@ dialog h2 { margin: 0; font-size: 17px; }
   }
 
   function renderRail() {
-    const items = { tasks: "任務", calendar: "日曆", matrix: "四象限", focus: "番茄鐘", habits: "習慣" };
+    const items = { tasks: "Tasks", calendar: "Calendar", matrix: "Matrix", focus: "Focus", habits: "Habits" };
     for (const k in items) {
       const b = $("#go-" + k);
-      b.innerHTML = ic(k, 21) + `<span>${items[k]}</span>` + (k === "focus" && timer.running ? '<i class="live" title="計時中"></i>' : "");
+      b.innerHTML = ic(k, 21) + `<span>${items[k]}</span>` + (k === "focus" && timer.running ? '<i class="live" title="Timer running"></i>' : "");
       if (ui.view === k) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
     }
   }
@@ -651,12 +680,12 @@ dialog h2 { margin: 0; font-size: 17px; }
     const hasEx = COLLS.some(c => all(c).some(x => x.example));
     $("#side").innerHTML =
       SMART.map(([k, n, i]) => row(k, ic(i), n)).join("") +
-      `<div class="side-h"><span>清單</span><button class="icon-btn" id="add-list" aria-label="新增清單">${ic("plus", 16)}</button></div>` +
-      (lists.length ? lists.map(l => row("list:" + l.id, `<span class="dot" style="background:${l.color}"></span>`, l.name, `<button class="row-edit" data-list-edit="${l.id}" aria-label="編輯清單 ${esc(l.name)}">${ic("edit", 14)}</button>`)).join("")
-        : `<div class="muted" style="padding:4px 10px;font-size:12.5px">${loaded ? "按 ＋ 建立第一個清單" : "載入中…"}</div>`) +
-      (tags.length ? `<div class="side-h"><span>標籤</span></div>` + tags.map(g => row("tag:" + g, ic("tag", 16), g)).join("") : "") +
-      `<div style="height:8px"></div>` + `<div class="nav-row ${ui.nav === "done" && ui.view === "tasks" ? "active" : ""}"><button class="nav-item" data-nav="done">${ic("done")}<span class="nm">已完成</span></button></div>` +
-      (hasEx ? `<div class="example-note"><span>目前顯示的是範例資料，可以直接修改，或一次清除。</span><button id="clear-ex">清除範例資料</button></div>` : "") +
+      `<div class="side-h"><span>LISTS</span><button class="icon-btn" id="add-list" aria-label="New list">${ic("plus", 16)}</button></div>` +
+      (lists.length ? lists.map(l => row("list:" + l.id, `<span class="dot" style="background:${l.color}"></span>`, l.name, `<button class="row-edit" data-list-edit="${l.id}" aria-label="Edit list ${esc(l.name)}">${ic("edit", 14)}</button>`)).join("")
+        : `<div class="muted" style="padding:4px 10px;font-size:12.5px">${loaded ? "Press + to create your first list" : "Loading…"}</div>`) +
+      (tags.length ? `<div class="side-h"><span>TAGS</span></div>` + tags.map(g => row("tag:" + g, ic("tag", 16), g)).join("") : "") +
+      `<div style="height:8px"></div><div class="nav-row ${ui.nav === "done" && ui.view === "tasks" ? "active" : ""}"><button class="nav-item" data-nav="done">${ic("done")}<span class="nm">Completed</span></button></div>` +
+      (hasEx ? `<div class="example-note"><span>You're looking at sample data. Edit it freely, or clear it all at once.</span><button id="clear-ex">Clear sample data</button></div>` : "") +
       `<div class="sync">${esc(syncNote)}</div>`;
   }
 
@@ -666,16 +695,17 @@ dialog h2 { margin: 0; font-size: 17px; }
     const dd = t.due ? diffDays(t.due, today()) : null;
     const meta = [];
     if (sub.length) meta.push(`<span>${ic("sub", 12)}${sd}/${sub.length}</span>`);
-    if (t.notes) meta.push(`<span>${ic("note", 12)}</span>`);
+    if (t.notes) meta.push(`<span title="Has notes">${ic("note", 12)}</span>`);
     (t.tags || []).forEach(g => meta.push(`<span class="chip-tag">#${esc(g)}</span>`));
     if (l) meta.push(`<span><i class="dot" style="background:${l.color};width:7px;height:7px;margin:0"></i>${esc(l.name)}</span>`);
+    const dueTxt = t.due && !o.hideDate ? fmtDue(t) : t.time ? fmtTime(t.time) : "";
     return `<div class="task ${t.done ? "is-done" : ""} ${ui.sel === t.id ? "sel" : ""}" data-task="${t.id}" ${o.drag ? 'draggable="true"' : ""}>
-      <button class="cb" style="--pc:${priColor(t.priority)}" data-check="${t.id}" aria-label="${t.done ? "標記為未完成" : "完成"}：${esc(t.title)}">${CHECK}</button>
+      <button class="cb" style="--pc:${priColor(t.priority)}" data-check="${t.id}" aria-label="${t.done ? "Mark as not done" : "Complete"}: ${esc(t.title)}">${CHECK}</button>
       <div style="min-width:0"><div class="task-title">${esc(t.title)}</div>${meta.length ? `<div class="task-meta">${meta.join("")}</div>` : ""}</div>
-      <div class="task-right">${t.repeat ? ic("repeat", 13) : ""}${t.pomos ? `<span class="num" title="已專注 ${t.pomos} 個番茄">${t.pomos}</span>${ic("focus", 13)}` : ""}${t.due && !o.hideDate ? `<span class="due ${!t.done && dd < 0 ? "late" : !t.done && dd === 0 ? "today" : ""}">${esc(fmtDue(t))}</span>` : ""}</div>
+      <div class="task-right">${t.repeat ? `<span title="${REPEAT[t.repeat]}">${ic("repeat", 13)}</span>` : ""}${t.pomos ? `<span class="num" title="${plural(t.pomos, "pomodoro")} done">${t.pomos}</span>${ic("focus", 13)}` : ""}${dueTxt ? `<span class="due ${!t.done && dd < 0 ? "late" : !t.done && dd === 0 ? "today" : ""}">${esc(dueTxt)}</span>` : ""}</div>
     </div>`;
   }
-  const emptyBox = (icon, msg) => `<div class="empty">${ic(icon, 48, 1.4)}<div>${loaded ? msg : "載入中…"}</div></div>`;
+  const emptyBox = (icon, msg) => `<div class="empty">${ic(icon, 48, 1.4)}<div>${loaded ? msg : "Loading…"}</div></div>`;
 
   function renderTasks() {
     if (!navInfo(ui.nav)) ui.nav = "today";
@@ -685,29 +715,30 @@ dialog h2 { margin: 0; font-size: 17px; }
     $("#toggle-done").setAttribute("aria-pressed", ui.showDone);
     $("#toggle-done").hidden = ui.nav === "done";
     $("#qa-form").hidden = ui.nav === "done";
+    $("#qa-hint").hidden = ui.nav === "done";
     const pred = basePred(ui.nav);
     const showList = !ui.nav.startsWith("list:");
     let html = "";
     if (ui.nav === "done") {
       const ds = all("tasks").filter(t => t.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
       const byDay = {};
-      ds.forEach(t => { const k = t.doneAt ? ymd(new Date(t.doneAt)) : "更早"; (byDay[k] = byDay[k] || []).push(t); });
-      html = Object.keys(byDay).map(k => `<div class="group"><div class="group-h">${k === today() ? "今天" : k === addDays(today(), -1) ? "昨天" : k === "更早" ? k : fmtMD(k)} <span class="n">${byDay[k].length}</span></div>${byDay[k].map(t => taskRow(t, { showList })).join("")}</div>`).join("")
-        || emptyBox("done", "還沒有完成的任務。");
+      ds.forEach(t => { const k = t.doneAt ? ymd(new Date(t.doneAt)) : "earlier"; (byDay[k] = byDay[k] || []).push(t); });
+      html = Object.keys(byDay).map(k => `<div class="group"><div class="group-h">${k === today() ? "Today" : k === addDays(today(), -1) ? "Yesterday" : k === "earlier" ? "Earlier" : fmtMD(k)} <span class="n">${byDay[k].length}</span></div>${byDay[k].map(t => taskRow(t, { showList })).join("")}</div>`).join("")
+        || emptyBox("done", "No completed tasks yet.");
     } else {
       const open = all("tasks").filter(t => !t.done && pred(t)).sort(sortTasks);
       const groups = {}; open.forEach(t => (groups[groupOf(t)] = groups[groupOf(t)] || []).push(t));
       html = GROUPS.filter(([k]) => groups[k]).map(([k, n]) => `<div class="group"><div class="group-h ${k === "overdue" ? "late" : ""}">${n} <span class="n">${groups[k].length}</span></div>${groups[k].map(t => taskRow(t, { showList })).join("")}</div>`).join("");
-      if (!open.length) html = emptyBox("tasks", ui.nav === "today" ? "今天的任務都完成了。在上方輸入框新增任務，可以直接寫「明天下午3點」或「#標籤」。" : "這裡還沒有任務。在上方輸入框新增一個。");
+      if (!open.length) html = emptyBox("tasks", ui.nav === "today" ? "All done for today. Add a task above. You can type dates like “tomorrow 3pm” or tags like “#work”." : "Nothing here yet. Add a task above.");
       const done = all("tasks").filter(t => t.done && pred(t)).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 30);
-      if (done.length && ui.showDone) html += `<div class="group"><div class="group-h">已完成 <span class="n">${done.length}</span></div>${done.map(t => taskRow(t, { showList })).join("")}</div>`;
+      if (done.length && ui.showDone) html += `<div class="group"><div class="group-h">Completed <span class="n">${done.length}</span></div>${done.map(t => taskRow(t, { showList })).join("")}</div>`;
     }
     $("#task-list").innerHTML = html;
   }
 
   function renderDetail(force) {
     const el = $("#detail"), t = S.tasks[ui.sel];
-    if (!t) { el.dataset.id = ""; el.innerHTML = `<div class="d-empty">${ic("tasks", 54, 1.3)}<div>點一下任務，在這裡編輯日期、子任務和標籤。</div></div>`; return; }
+    if (!t) { el.dataset.id = ""; el.innerHTML = `<div class="d-empty">${ic("tasks", 54, 1.3)}<div>Select a task to edit its date, subtasks and tags.</div></div>`; return; }
     const a = document.activeElement;
     if (!force && el.dataset.id === t.id && el.contains(a) && a.matches('input[type="text"], textarea')) return;
     el.dataset.id = t.id;
@@ -716,32 +747,32 @@ dialog h2 { margin: 0; font-size: 17px; }
     const created = t.created ? new Date(t.created) : null;
     el.innerHTML = `<div class="d-wrap">
       <div class="d-top">
-        <button class="icon-btn d-back" data-close-detail aria-label="關閉詳情">${ic("back")}</button>
-        <button class="cb ${t.done ? "on" : ""}" style="--pc:${priColor(t.priority)}" data-check="${t.id}" aria-label="${t.done ? "標記為未完成" : "完成任務"}">${CHECK}</button>
-        <input type="date" id="d-due" value="${t.due || ""}" aria-label="日期">
-        <input type="time" id="d-time" value="${t.time || ""}" ${t.due ? "" : "disabled"} aria-label="時間">
+        <button class="icon-btn d-back" data-close-detail aria-label="Close details">${ic("back")}</button>
+        <button class="cb ${t.done ? "on" : ""}" style="--pc:${priColor(t.priority)}" data-check="${t.id}" aria-label="${t.done ? "Mark as not done" : "Complete task"}">${CHECK}</button>
+        <input type="date" id="d-due" value="${t.due || ""}" aria-label="Date">
+        <input type="time" id="d-time" value="${t.time || ""}" ${t.due ? "" : "disabled"} aria-label="Time">
         <span class="grow"></span>
-        <div class="prio-pick" role="group" aria-label="優先度">${PRI.map(p => `<button data-prio="${p.v}" aria-pressed="${(t.priority || 0) === p.v}" title="優先度：${p.n}" aria-label="優先度${p.n}" style="--pc:${p.c}">${ic("flag", 17, 2)}</button>`).join("")}</div>
+        <div class="prio-pick" role="group" aria-label="Priority">${PRI.map(p => `<button data-prio="${p.v}" aria-pressed="${(t.priority || 0) === p.v}" title="${p.n} priority" aria-label="${p.n} priority" style="--pc:${p.c}">${ic("flag", 17, 2)}</button>`).join("")}</div>
       </div>
-      <input type="text" id="d-title" class="d-title" value="${esc(t.title)}" maxlength="200" aria-label="任務名稱">
-      <textarea id="d-notes" class="d-notes" placeholder="描述、連結或筆記…" aria-label="描述">${esc(t.notes || "")}</textarea>
+      <input type="text" id="d-title" class="d-title" value="${esc(t.title)}" maxlength="200" aria-label="Task name">
+      <textarea id="d-notes" class="d-notes" placeholder="Notes, links, details…" aria-label="Notes">${esc(t.notes || "")}</textarea>
       <div class="d-sec">
-        <div class="d-label"><span>子任務</span><span class="num">${subs.length ? `${sd}/${subs.length}` : ""}</span></div>
+        <div class="d-label"><span>SUBTASKS</span><span class="num">${subs.length ? `${sd}/${subs.length}` : ""}</span></div>
         ${subs.length ? `<div class="prog"><i style="width:${Math.round(sd / subs.length * 100)}%"></i></div>` : ""}
-        <div>${subs.map(s => `<div class="sub ${s.done ? "done" : ""}"><button class="cb ${s.done ? "on" : ""}" data-sub-check="${s.id}" aria-label="${s.done ? "取消完成" : "完成"}子任務">${CHECK}</button><input type="text" id="sub-${s.id}" data-sub-text="${s.id}" value="${esc(s.t)}" aria-label="子任務"><button class="icon-btn" data-sub-del="${s.id}" aria-label="刪除子任務">${ic("x", 14)}</button></div>`).join("")}</div>
-        <input type="text" class="line-input" id="d-sub-new" placeholder="＋ 新增子任務，按 Enter" aria-label="新增子任務">
+        <div>${subs.map(s => `<div class="sub ${s.done ? "done" : ""}"><button class="cb ${s.done ? "on" : ""}" data-sub-check="${s.id}" aria-label="${s.done ? "Uncheck" : "Check"} subtask">${CHECK}</button><input type="text" id="sub-${s.id}" data-sub-text="${s.id}" value="${esc(s.t)}" aria-label="Subtask"><button class="icon-btn" data-sub-del="${s.id}" aria-label="Delete subtask">${ic("x", 14)}</button></div>`).join("")}</div>
+        <input type="text" class="line-input" id="d-sub-new" placeholder="+ Add a subtask, press Enter" aria-label="Add a subtask">
       </div>
       <div class="d-sec">
-        <div class="d-label">標籤</div>
-        <div class="tags-edit">${(t.tags || []).map(g => `<span class="tag-chip">#${esc(g)}<button data-tag-del="${esc(g)}" aria-label="移除標籤 ${esc(g)}">${ic("x", 12)}</button></span>`).join("")}<input type="text" id="d-tag-new" placeholder="輸入標籤後按 Enter" aria-label="新增標籤"></div>
+        <div class="d-label">TAGS</div>
+        <div class="tags-edit">${(t.tags || []).map(g => `<span class="tag-chip">#${esc(g)}<button data-tag-del="${esc(g)}" aria-label="Remove tag ${esc(g)}">${ic("x", 12)}</button></span>`).join("")}<input type="text" id="d-tag-new" placeholder="Type a tag, press Enter" aria-label="Add a tag"></div>
       </div>
       <div class="d-grid">
-        <div class="field"><label for="d-list">清單</label><select id="d-list"><option value="inbox">收件匣</option>${lists.map(l => `<option value="${l.id}" ${t.listId === l.id ? "selected" : ""}>${esc(l.name)}</option>`).join("")}</select></div>
-        <div class="field"><label for="d-repeat">重複</label><select id="d-repeat">${Object.entries(REPEAT).map(([k, n]) => `<option value="${k}" ${(t.repeat || "") === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>
+        <div class="field"><label for="d-list">List</label><select id="d-list"><option value="inbox">Inbox</option>${lists.map(l => `<option value="${l.id}" ${t.listId === l.id ? "selected" : ""}>${esc(l.name)}</option>`).join("")}</select></div>
+        <div class="field"><label for="d-repeat">Repeat</label><select id="d-repeat">${Object.entries(REPEAT).map(([k, n]) => `<option value="${k}" ${(t.repeat || "") === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>
       </div>
       <div class="d-foot">
-        <span class="muted">${created ? `建立於 ${created.getMonth() + 1}/${created.getDate()}` : ""}${t.pomos ? ` · 已專注 ${t.pomos} 個番茄` : ""}${t.example ? " · 範例" : ""}</span>
-        <div class="acts"><button class="btn" data-focus-task="${t.id}">${ic("focus", 15)}專注</button><button class="btn danger" id="d-del">${ic("trash", 15)}刪除</button></div>
+        <span class="muted">${created ? `Created ${MO[created.getMonth()]} ${created.getDate()}` : ""}${t.pomos ? ` · ${plural(t.pomos, "pomodoro")}` : ""}${t.example ? " · Sample" : ""}</span>
+        <div class="acts"><button class="btn" data-focus-task="${t.id}">${ic("focus", 15)}Focus</button><button class="btn danger" id="d-del">${ic("trash", 15)}Delete</button></div>
       </div>
     </div>`;
     autoGrow($("#d-notes"));
@@ -754,7 +785,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     if (!ui.calMonth) ui.calMonth = t0.slice(0, 7);
     if (!ui.calDay) ui.calDay = t0;
     const [Y, M] = ui.calMonth.split("-").map(Number);
-    $("#cal-title").textContent = `${Y} 年 ${M} 月`;
+    $("#cal-title").textContent = `${MONTHS[M - 1]} ${Y}`;
     $("#cal-prev").innerHTML = ic("left"); $("#cal-next").innerHTML = ic("right");
     const first = new Date(Y, M - 1, 1), start = new Date(Y, M - 1, 1 - first.getDay());
     const byDay = {};
@@ -763,19 +794,19 @@ dialog h2 { margin: 0; font-size: 17px; }
     for (let i = 0; i < 42; i++) {
       const d = new Date(start); d.setDate(start.getDate() + i);
       const k = ymd(d), ts = (byDay[k] || []).sort((a, b) => a.done - b.done || sortTasks(a, b));
-      html += `<div class="cell ${d.getMonth() !== M - 1 ? "other" : ""} ${k === t0 ? "today" : ""} ${k === ui.calDay ? "picked" : ""}" data-day="${k}" tabindex="0" role="button" aria-label="${fmtMD(k)}，${ts.length} 個任務">
+      html += `<div class="cell ${d.getMonth() !== M - 1 ? "other" : ""} ${k === t0 ? "today" : ""} ${k === ui.calDay ? "picked" : ""}" data-day="${k}" tabindex="0" role="button" aria-label="${fmtMD(k)}, ${plural(ts.length, "task")}">
         <span class="dn">${d.getDate()}</span>
-        ${ts.slice(0, 3).map(t => `<span class="cchip ${t.done ? "done" : ""}" style="--pc:${priColor(t.priority)}" data-task="${t.id}">${t.time ? t.time + " " : ""}${esc(t.title)}</span>`).join("")}
-        ${ts.length > 3 ? `<span class="cmore">還有 ${ts.length - 3} 個</span>` : ""}
+        ${ts.slice(0, 3).map(t => `<span class="cchip ${t.done ? "done" : ""}" style="--pc:${priColor(t.priority)}" data-task="${t.id}">${t.time ? fmtTime(t.time).replace(":00", "") + " " : ""}${esc(t.title)}</span>`).join("")}
+        ${ts.length > 3 ? `<span class="cmore">+${ts.length - 3} more</span>` : ""}
         <span class="cdots">${ts.slice(0, 4).map(t => `<i style="--pc:${t.done ? "var(--p0)" : priColor(t.priority)}"></i>`).join("")}</span>
       </div>`;
     }
     $("#cal-grid").innerHTML = html;
     const d = parseD(ui.calDay);
-    $("#agenda-title").textContent = `${fmtMD(ui.calDay)}（週${WD[d.getDay()]}）`;
-    $("#cal-qa").placeholder = `新增任務到 ${fmtMD(ui.calDay)}`;
+    $("#agenda-title").textContent = `${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
+    $("#cal-qa").placeholder = `Add a task to ${fmtMD(ui.calDay)}`;
     const ts = (byDay[ui.calDay] || []).sort((a, b) => a.done - b.done || sortTasks(a, b));
-    $("#agenda-list").innerHTML = ts.length ? ts.map(t => taskRow(t, { showList: true, hideDate: !t.time })).join("") : `<div class="muted" style="padding:8px 10px">${loaded ? "這天沒有任務。" : "載入中…"}</div>`;
+    $("#agenda-list").innerHTML = ts.length ? ts.map(t => taskRow(t, { showList: true, hideDate: true })).join("") : `<div class="muted" style="padding:8px 10px">${loaded ? "Nothing scheduled for this day." : "Loading…"}</div>`;
     $$("#view-calendar .qa-ic").forEach(e => e.innerHTML = ic("plus", 16, 2.2));
   }
 
@@ -784,7 +815,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     const open = all("tasks").filter(t => !t.done).sort(sortTasks);
     [3, 2, 1, 0].forEach(p => {
       const ts = open.filter(t => (t.priority || 0) === p);
-      $(`[data-qlist="${p}"]`).innerHTML = ts.length ? ts.map(t => taskRow(t, { showList: true, drag: true })).join("") : `<div class="muted" style="padding:8px;font-size:12.5px">${loaded ? "沒有任務" : "載入中…"}</div>`;
+      $(`[data-qlist="${p}"]`).innerHTML = ts.length ? ts.map(t => taskRow(t, { showList: true, drag: true })).join("") : `<div class="muted" style="padding:8px;font-size:12.5px">${loaded ? "No tasks" : "Loading…"}</div>`;
       $(`[data-qcount="${p}"]`).textContent = ts.length;
     });
   }
@@ -810,9 +841,9 @@ dialog h2 { margin: 0; font-size: 17px; }
         save("focus", { id: uid(), taskId: timer.taskId || "", minutes: mins, date: today(), at: Date.now() });
         const t = S.tasks[timer.taskId]; if (t) patchTask(t.id, { pomos: (t.pomos || 0) + 1 });
         timer.rounds = (timer.rounds || 0) + 1;
-        toast(`完成一個番茄（${mins} 分鐘），休息一下。`);
+        toast(`Pomodoro done (${mins} min). Take a break.`);
         setMode(timer.rounds % 4 === 0 ? "long" : "short");
-      } else { toast("休息結束，開始下一個番茄吧。"); setMode("pomo"); }
+      } else { toast("Break's over. Ready for the next pomodoro?"); setMode("pomo"); }
       saveTimer(); render(); return;
     }
     if (ui.view !== "focus") return;
@@ -820,24 +851,24 @@ dialog h2 { margin: 0; font-size: 17px; }
     $("#clock").textContent = `${pad(Math.floor(sec / 60))}:${pad(sec % 60)}`;
     $("#ring-prg").setAttribute("stroke-dashoffset", (339.29 * (el / timer.duration)).toFixed(2));
     $("#ring").classList.toggle("brk", timer.mode !== "pomo");
-    $("#clock-sub").textContent = timer.running ? (timer.mode === "pomo" ? "專注中" : "休息中") : el > 0 ? "已暫停" : timer.mode === "pomo" ? "準備開始" : "休息時間";
-    $("#t-start").textContent = timer.running ? "暫停" : el > 0 ? "繼續" : "開始";
+    $("#clock-sub").textContent = timer.running ? (timer.mode === "pomo" ? "Focusing" : "On break") : el > 0 ? "Paused" : timer.mode === "pomo" ? "Ready" : "Break time";
+    $("#t-start").textContent = timer.running ? "Pause" : el > 0 ? "Resume" : "Start";
     $("#t-stop").hidden = !(timer.running || el > 0);
     $$("[data-mode]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.mode === timer.mode); b.disabled = timer.running; });
   }
   function renderFocus() {
     if (loaded && timer.taskId && !S.tasks[timer.taskId]) timer.taskId = "";
     const open = all("tasks").filter(t => !t.done || t.id === timer.taskId).sort(sortTasks);
-    $("#timer-task").innerHTML = `<option value="">不指定任務</option>` + open.map(t => `<option value="${t.id}" ${t.id === timer.taskId ? "selected" : ""}>${esc(t.title)}</option>`).join("");
+    $("#timer-task").innerHTML = `<option value="">No specific task</option>` + open.map(t => `<option value="${t.id}" ${t.id === timer.taskId ? "selected" : ""}>${esc(t.title)}</option>`).join("");
     const t0 = today(), fs = all("focus").sort((a, b) => (b.at || 0) - (a.at || 0));
     const todayF = fs.filter(f => f.date === t0);
     const mins = todayF.reduce((a, f) => a + (f.minutes || 0), 0);
     const totalMins = fs.reduce((a, f) => a + (f.minutes || 0), 0);
-    $("#focus-stats").innerHTML = `<div class="stat"><b>${todayF.length}</b><span>今日番茄</span></div><div class="stat"><b>${Math.floor(mins / 60)}<small style="font-size:12px">h</small>${mins % 60}<small style="font-size:12px">m</small></b><span>今日專注</span></div><div class="stat"><b>${fs.length}</b><span>累計番茄</span></div>`;
+    $("#focus-stats").innerHTML = `<div class="stat"><b>${todayF.length}</b><span>Today's pomos</span></div><div class="stat"><b>${Math.floor(mins / 60)}<small style="font-size:12px">h</small> ${mins % 60}<small style="font-size:12px">m</small></b><span>Focused today</span></div><div class="stat"><b>${fs.length}</b><span>Total pomos</span></div>`;
     $("#focus-log").innerHTML = fs.length ? fs.slice(0, 12).map(f => {
       const t = S.tasks[f.taskId], d = new Date(f.at || parseD(f.date));
-      return `<div class="rec"><div style="min-width:0"><div style="overflow-wrap:anywhere">${t ? esc(t.title) : "未指定任務"}</div><div class="when">${f.date === t0 ? "今天" : fmtMD(f.date)} ${pad(d.getHours())}:${pad(d.getMinutes())}</div></div><span class="num">${f.minutes} 分</span></div>`;
-    }).join("") + `<div class="muted" style="font-size:12px;padding-top:8px">累計 ${Math.round(totalMins / 6) / 10} 小時</div>` : `<div class="muted" style="padding:6px 0">${loaded ? "完成第一個番茄後，紀錄會出現在這裡。" : "載入中…"}</div>`;
+      return `<div class="rec"><div style="min-width:0"><div style="overflow-wrap:anywhere">${t ? esc(t.title) : "No specific task"}</div><div class="when">${f.date === t0 ? "Today" : fmtMD(f.date)}, ${fmtTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`)}</div></div><span class="num">${f.minutes} min</span></div>`;
+    }).join("") + `<div class="muted" style="font-size:12px;padding-top:8px">${Math.round(totalMins / 6) / 10} hours in total</div>` : `<div class="muted" style="padding:6px 0">${loaded ? "Finish your first pomodoro and it will show up here." : "Loading…"}</div>`;
     tick();
   }
 
@@ -858,10 +889,10 @@ dialog h2 { margin: 0; font-size: 17px; }
     $("#habit-list").innerHTML = hs.length ? hs.map(h => {
       const c = h.checks || {}, mCount = Object.keys(c).filter(k => k.startsWith(month)).length;
       return `<div class="habit" style="--hc:${h.color || "var(--accent)"}">
-        <button class="habit-name" data-habit-edit="${h.id}"><span class="dot" style="background:${h.color};width:12px;height:12px;border-radius:50%"></span><span style="min-width:0"><b>${esc(h.name)}</b><small>連續 ${streakOf(h)} 天 · 本月 ${mCount} 次${h.example ? " · 範例" : ""}</small></span></button>
-        <div class="hdays">${days.map(d => `<div class="hday"><span>${d === t0 ? "今" : WD[parseD(d).getDay()]}</span><button class="hcheck ${c[d] ? "on" : ""} ${d === t0 ? "today" : ""}" data-hcheck="${h.id}" data-day="${d}" aria-pressed="${!!c[d]}" aria-label="${esc(h.name)} ${fmtMD(d)}">${CHECK.replace('<svg', '<svg width="15" height="15"')}</button></div>`).join("")}</div>
+        <button class="habit-name" data-habit-edit="${h.id}"><span class="dot" style="background:${h.color};width:12px;height:12px;border-radius:50%"></span><span style="min-width:0"><b>${esc(h.name)}</b><small>${plural(streakOf(h), "day")} streak · ${mCount} this month${h.example ? " · Sample" : ""}</small></span></button>
+        <div class="hdays">${days.map(d => `<div class="hday"><span>${d === t0 ? "Today" : WD[parseD(d).getDay()]}</span><button class="hcheck ${c[d] ? "on" : ""} ${d === t0 ? "today" : ""}" data-hcheck="${h.id}" data-day="${d}" aria-pressed="${!!c[d]}" aria-label="${esc(h.name)}, ${fmtMD(d)}">${CHECK.replace("<svg", '<svg width="15" height="15"')}</button></div>`).join("")}</div>
       </div>`;
-    }).join("") : emptyBox("habits", "還沒有習慣。在上方輸入框新增一個，每天回來打卡。");
+    }).join("") : emptyBox("habits", "No habits yet. Add one above and check in each day.");
   }
 
   // ---------- actions ----------
@@ -875,10 +906,10 @@ dialog h2 { margin: 0; font-size: 17px; }
       const nd = nextDue(t.due, t.repeat);
       save("tasks", { ...t, id: uid(), done: true, doneAt: Date.now(), repeat: "", subtasks: (t.subtasks || []).map(s => ({ ...s, done: true })) });
       patchTask(id, { due: nd, subtasks: (t.subtasks || []).map(s => ({ ...s, done: false })) });
-      toast(`已完成，下一次在 ${fmtMD(nd)}`);
+      toast(`Done. Next one is ${fmtMD(nd)}.`);
     } else if (!t.done) {
       patchTask(id, { done: true, doneAt: Date.now() });
-      toast(`完成「${t.title}」`, "復原", () => patchTask(id, { done: false, doneAt: null }));
+      toast(`Completed “${t.title}”`, "Undo", () => patchTask(id, { done: false, doneAt: null }));
     } else patchTask(id, { done: false, doneAt: null });
   }
 
@@ -928,15 +959,15 @@ dialog h2 { margin: 0; font-size: 17px; }
   $("#qa-ic").innerHTML = ic("plus", 16, 2.2);
   function hint() {
     const v = qa.value.trim();
-    if (!v) { $("#qa-hint").innerHTML = `<span>可以用：今天、明天、週五、10/15、下午3點、#標籤、!高、^清單名、每週</span>`; return; }
+    if (!v) { $("#qa-hint").innerHTML = `<span>Try: today, tomorrow, friday, next mon, 10/15, Oct 15, 3pm, in 3 days, every week, #tag, !high, ^list</span>`; return; }
     const p = parseQuick(v);
-    $("#qa-hint").innerHTML = p.tokens.length ? p.tokens.map(t => `<span class="tok">${esc(t)}</span>`).join("") + `<span>按 Enter 新增</span>` : `<span>按 Enter 新增</span>`;
+    $("#qa-hint").innerHTML = p.tokens.map(t => `<span class="tok">${esc(t)}</span>`).join("") + `<span>Press Enter to add</span>`;
   }
   qa.addEventListener("input", hint);
   $("#qa-form").addEventListener("submit", e => {
     e.preventDefault(); if (!qa.value.trim()) return;
     const t = createTask(qa.value, navDefaults(ui.nav));
-    if (t) { qa.value = ""; hint(); toast(`已新增「${t.title}」${t.due ? "，" + fmtDue(t) : ""}`); }
+    if (t) { qa.value = ""; hint(); toast(`Added “${t.title}”${t.due ? ", " + fmtDue(t) : ""}`); }
   });
   $("#cal-qa-form").addEventListener("submit", e => {
     e.preventDefault(); const v = $("#cal-qa").value; if (!v.trim()) return;
@@ -949,7 +980,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   $("#cal-prev").addEventListener("click", () => shiftMonth(-1));
   $("#cal-next").addEventListener("click", () => shiftMonth(1));
   $("#cal-today").addEventListener("click", () => { ui.calMonth = today().slice(0, 7); ui.calDay = today(); render({ skipDetail: true }); });
-  function shiftMonth(n) { const [Y, M] = ui.calMonth.split("-").map(Number); const d = new Date(Y, M - 1 + n, 1); ui.calMonth = ymd(d).slice(0, 7); render({ skipDetail: true }); }
+  function shiftMonth(n) { const [Y, M] = ui.calMonth.split("-").map(Number); ui.calMonth = ymd(new Date(Y, M - 1 + n, 1)).slice(0, 7); render({ skipDetail: true }); }
 
   // matrix drag
   let dragId = null;
@@ -968,7 +999,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   });
   det.addEventListener("focusout", e => {
     const t = S.tasks[ui.sel]; if (!t) return;
-    if (e.target.id === "d-title" && !e.target.value.trim()) { e.target.value = "未命名任務"; patchTask(t.id, { title: "未命名任務" }); }
+    if (e.target.id === "d-title" && !e.target.value.trim()) { e.target.value = "Untitled task"; patchTask(t.id, { title: "Untitled task" }); }
     else if (e.target.matches("#d-title, #d-notes, [data-sub-text]")) flush(t.id);
   });
   det.addEventListener("change", e => {
@@ -989,8 +1020,8 @@ dialog h2 { margin: 0; font-size: 17px; }
     const tx = e.target.closest("[data-tag-del]"); if (tx) { patchTask(t.id, { tags: (t.tags || []).filter(g => g !== tx.dataset.tagDel) }); renderDetail(true); return; }
     const del = e.target.closest("#d-del");
     if (del) {
-      if (del.classList.contains("armed")) { const id = t.id; clearTimeout(pendT[id]); delete pend[id]; ui.sel = null; remove("tasks", id); toast("已刪除任務"); }
-      else { del.classList.add("armed"); del.innerHTML = ic("trash", 15) + "確認刪除"; setTimeout(() => { if (del.isConnected) { del.classList.remove("armed"); del.innerHTML = ic("trash", 15) + "刪除"; } }, 3000); }
+      if (del.classList.contains("armed")) { const id = t.id; clearTimeout(pendT[id]); delete pend[id]; ui.sel = null; remove("tasks", id); toast("Task deleted"); }
+      else { del.classList.add("armed"); del.innerHTML = ic("trash", 15) + "Confirm delete"; setTimeout(() => { if (del.isConnected) { del.classList.remove("armed"); del.innerHTML = ic("trash", 15) + "Delete"; } }, 3000); }
     }
   });
   det.addEventListener("keydown", e => {
@@ -1001,7 +1032,7 @@ dialog h2 { margin: 0; font-size: 17px; }
       renderDetail(true); $("#d-sub-new").focus();
     } else if (e.target.id === "d-tag-new" && e.target.value.trim()) {
       e.preventDefault(); flush(t.id);
-      const g = e.target.value.trim().replace(/^#/, "").replace(/\s+/g, "");
+      const g = e.target.value.trim().replace(/^#/, "").replace(/\s+/g, "-");
       if (g) patchTask(t.id, { tags: [...new Set([...(S.tasks[t.id].tags || []), g])] });
       renderDetail(true); $("#d-tag-new").focus();
     } else if (e.target.id === "d-title") { e.preventDefault(); e.target.blur(); }
@@ -1014,13 +1045,17 @@ dialog h2 { margin: 0; font-size: 17px; }
     else { timer.running = true; timer.startedAt = Date.now(); try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); } catch {} }
     saveTimer(); tick(); renderRail();
   });
-  $("#t-stop").addEventListener("click", () => { timer.running = false; setMode(timer.mode); renderRail(); toast("已放棄這個番茄，不會記錄。"); });
+  $("#t-stop").addEventListener("click", () => { timer.running = false; setMode(timer.mode); renderRail(); toast("Pomodoro abandoned. Nothing was logged."); });
   $("#timer-task").addEventListener("change", e => { timer.taskId = e.target.value; saveTimer(); });
-  setInterval(() => { if (timer.running || ui.view === "focus") tick(); if (timer.running) document.title = `${$("#clock").textContent || ""} 勾勾清單`.trim(); else if (document.title !== "勾勾清單") document.title = "勾勾清單"; }, 500);
+  setInterval(() => {
+    if (timer.running || ui.view === "focus") tick();
+    const want = timer.running ? `${$("#clock").textContent} · Tally` : "Tally";
+    if (document.title !== want) document.title = want;
+  }, 500);
 
   // lists & habits dialogs
   function colorPicker(box, cur, onPick) {
-    box.innerHTML = COLORS.map(c => `<button type="button" style="background:${c}" data-c="${c}" aria-pressed="${c === cur}" aria-label="顏色"></button>`).join("");
+    box.innerHTML = COLORS.map(c => `<button type="button" style="background:${c}" data-c="${c}" aria-pressed="${c === cur}" aria-label="Color ${c}"></button>`).join("");
     box.onclick = e => { const b = e.target.closest("[data-c]"); if (b) { onPick(b.dataset.c); colorPicker(box, b.dataset.c, onPick); } };
   }
   function armBtn(btn, label, fn) {
@@ -1030,7 +1065,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   let editList = null, listColor = COLORS[0];
   function openList(id) {
     editList = id ? S.lists[id] : null;
-    $("#list-dlg-title").textContent = editList ? "編輯清單" : "新增清單";
+    $("#list-dlg-title").textContent = editList ? "Edit list" : "New list";
     $("#l-name").value = editList?.name || "";
     listColor = editList?.color || COLORS[all("lists").length % COLORS.length];
     colorPicker($("#l-colors"), listColor, c => listColor = c);
@@ -1043,11 +1078,11 @@ dialog h2 { margin: 0; font-size: 17px; }
     save("lists", l); $("#list-dlg").close();
     if (!editList) { ui.nav = "list:" + l.id; ui.view = "tasks"; saveUI(); render(); }
   });
-  armBtn($("#l-del"), "確認刪除？任務會移到收件匣", async () => {
+  armBtn($("#l-del"), "Confirm? Tasks move to Inbox", async () => {
     const id = editList.id; $("#list-dlg").close();
     if (ui.nav === "list:" + id) ui.nav = "inbox";
     for (const t of all("tasks").filter(t => t.listId === id)) await save("tasks", { ...t, listId: "inbox" });
-    remove("lists", id); toast("已刪除清單");
+    remove("lists", id); toast("List deleted");
   });
   let editHabit = null, habitColor = COLORS[0];
   function openHabit(id) {
@@ -1060,7 +1095,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     e.preventDefault(); const name = $("#h-name").value.trim(); if (!name) return;
     save("habits", { ...editHabit, name, color: habitColor }); $("#habit-dlg").close();
   });
-  armBtn($("#h-del"), "確認刪除？打卡紀錄會一起刪除", () => { remove("habits", editHabit.id); $("#habit-dlg").close(); toast("已刪除習慣"); });
+  armBtn($("#h-del"), "Confirm? Check-ins are deleted too", () => { remove("habits", editHabit.id); $("#habit-dlg").close(); toast("Habit deleted"); });
   $("#habit-form").addEventListener("submit", e => {
     e.preventDefault(); const name = $("#habit-new").value.trim(); if (!name) return;
     save("habits", { id: uid(), name, color: COLORS[all("habits").length % COLORS.length], checks: {}, created: Date.now() });
@@ -1070,7 +1105,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   async function clearExamples() {
     ui.sel = null;
     for (const c of COLLS) for (const x of all(c).filter(x => x.example)) await remove(c, x.id);
-    toast("已清除範例資料");
+    toast("Sample data cleared");
   }
 
   // toast
