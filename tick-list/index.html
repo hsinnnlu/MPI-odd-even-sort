@@ -917,8 +917,8 @@ dialog h2 { margin: 0; font-size: 17px; }
     const p = parseQuick(qa.value || ""), d = compDefaults();
     if (!comp.touched.due) $("#c-due").value = p.due || d.due;
     if (!comp.touched.time) $("#c-time").value = p.time || "";
-    if (!comp.touched.priority) comp.priority = p.priority ?? d.priority;
     if (!comp.touched.listId) $("#c-list").value = p.listId || d.listId;
+    if (!comp.touched.priority) comp.priority = p.priority ?? (S.lists[$("#c-list").value]?.weekStart ? 2 : d.priority);
     if (!comp.touched.repeat) $("#c-repeat").value = p.repeat || "";
     comp.parsedTags = p.tags; comp.defTags = d.tags;
     renderCompPrio(); renderCompTags(); hint(p);
@@ -952,7 +952,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   $("#c-due").addEventListener("change", () => { comp.touched.due = true; });
   $("#c-time").addEventListener("change", () => { comp.touched.time = true; if ($("#c-time").value && !$("#c-due").value) { $("#c-due").value = today(); comp.touched.due = true; } });
   $("#c-repeat").addEventListener("change", () => { comp.touched.repeat = true; });
-  $("#c-list").addEventListener("change", () => { comp.touched.listId = true; renderCompTags(); });
+  $("#c-list").addEventListener("change", () => { comp.touched.listId = true; compSync(); });
   $("#comp-body").addEventListener("click", e => {
     const pb = e.target.closest("[data-cprio]"); if (pb) { comp.touched.priority = true; comp.priority = +pb.dataset.cprio; renderCompPrio(); return; }
     const td = e.target.closest("[data-ctag-del]");
