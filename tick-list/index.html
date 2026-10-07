@@ -102,6 +102,10 @@ button { cursor: pointer; }
 .group-h .n { font-weight: 500; font-family: var(--f-mono); }
 .group-h.late { color: var(--late); }
 .group-h.now { color: var(--accent); }
+.group-h.alldone { color: var(--accent); }
+.done-fold { border: 0; background: none; color: var(--muted); font-size: 12.5px; font-weight: 600; padding: 6px 10px; text-align: left; border-radius: 8px; display: flex; gap: 6px; align-items: center; width: 100%; }
+.done-fold:hover { background: var(--hover); color: var(--fg); }
+.done-fold .ar { width: 12px; display: inline-block; }
 .composer { display: grid; gap: 8px; }
 .comp-body { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 12px; box-shadow: var(--shadow); }
 .comp-row { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; }
@@ -478,7 +482,7 @@ dialog h2 { margin: 0; font-size: 17px; }
 
   // ---------- UI state ----------
   const ui = Object.assign({ view: "tasks", nav: "today", showDone: true, calMonth: null, calDay: null }, lsGet(LS_UI) || {});
-  ui.sel = null;
+  ui.sel = null; ui.openFolds = new Set(); ui.showSubDone = false;
   if (["tasks", "calendar", "matrix"].includes(location.hash.slice(1))) ui.view = location.hash.slice(1);
   if (!["tasks", "calendar", "matrix"].includes(ui.view)) ui.view = "tasks";
   const saveUI = () => lsSet(LS_UI, { view: ui.view, nav: ui.nav, showDone: ui.showDone });
@@ -714,16 +718,19 @@ dialog h2 { margin: 0; font-size: 17px; }
     if (!keys.length) return emptyBox("tasks", "No tasks yet. Add one above, for example “Read chapter 2 next fri”.");
     return keys.map(k => {
       const list = groups[k].sort((a, b) => a.done - b.done || sortTasks(a, b));
+      const openT = list.filter(t => !t.done), doneT = list.filter(t => t.done), fk = ui.nav + "|" + k, exp = ui.openFolds.has(fk);
       const done = list.filter(t => t.done).length;
       let label;
       if (k === 9999) label = "No date";
       else if (k === 0) label = "Before week 1";
       else { const a = addDays(ws, (k - 1) * 7), b = addDays(a, 6); label = `Week ${k} <span class="range">· ${fmtMD(a)} – ${fmtMD(b)}</span>`; }
       const late = k !== 9999 && k < nowWk && done < list.length;
-      return `<div class="group ${k < nowWk && !late ? "past" : ""}"><div class="group-h ${k === nowWk ? "now" : late ? "late" : ""}">${label}${k === nowWk ? ' <span class="now-tag">This week</span>' : ""}<span class="pill">${done}/${list.length}</span></div>${list.map(t => taskRow(t, { showList })).join("")}</div>`;
+      const allDone = doneT.length === list.length;
+      return `<div class="group ${k < nowWk && !late ? "past" : ""}"><div class="group-h ${k === nowWk ? "now" : late ? "late" : allDone ? "alldone" : ""}">${label}${k === nowWk ? ' <span class="now-tag">This week</span>' : ""}<span class="pill">${done}/${list.length}</span></div>${openT.map(t => taskRow(t, { showList })).join("")}${doneT.length ? `<button class="done-fold" data-fold="${esc(fk)}" aria-expanded="${exp}"><span class="ar">${exp ? "▾" : "▸"}</span>${allDone ? "All done" : "Completed"} · ${doneT.length}</button>${exp ? doneT.map(t => taskRow(t, { showList })).join("") : ""}` : ""}</div>`;
     }).join("");
   }
 
+  const subRow = s => `<div class="sub ${s.done ? "done" : ""}"><button class="cb ${s.done ? "on" : ""}" data-sub-check="${s.id}" aria-label="${s.done ? "Uncheck" : "Check"} subtask">${CHECK}</button><input type="text" id="sub-${s.id}" data-sub-text="${s.id}" value="${esc(s.t)}" aria-label="Subtask"><button class="icon-btn" data-sub-del="${s.id}" aria-label="Delete subtask">${ic("x", 14)}</button></div>`;
   function renderDetail(force) {
     const el = $("#detail"), t = S.tasks[ui.sel];
     if (!t) { el.dataset.id = ""; el.innerHTML = `<div class="d-empty">${ic("tasks", 54, 1.3)}<div>Select a task to edit its date, subtasks and tags.</div></div>`; return; }
@@ -747,7 +754,8 @@ dialog h2 { margin: 0; font-size: 17px; }
       <div class="d-sec">
         <div class="d-label"><span>SUBTASKS</span><span class="num">${subs.length ? `${sd}/${subs.length}` : ""}</span></div>
         ${subs.length ? `<div class="prog"><i style="width:${Math.round(sd / subs.length * 100)}%"></i></div>` : ""}
-        <div>${subs.map(s => `<div class="sub ${s.done ? "done" : ""}"><button class="cb ${s.done ? "on" : ""}" data-sub-check="${s.id}" aria-label="${s.done ? "Uncheck" : "Check"} subtask">${CHECK}</button><input type="text" id="sub-${s.id}" data-sub-text="${s.id}" value="${esc(s.t)}" aria-label="Subtask"><button class="icon-btn" data-sub-del="${s.id}" aria-label="Delete subtask">${ic("x", 14)}</button></div>`).join("")}</div>
+        <div>${subs.filter(s => !s.done).map(subRow).join("")}</div>
+        ${sd ? `<button class="done-fold" data-subfold aria-expanded="${ui.showSubDone}"><span class="ar">${ui.showSubDone ? "▾" : "▸"}</span>Completed · ${sd}</button>${ui.showSubDone ? `<div>${subs.filter(s => s.done).map(subRow).join("")}</div>` : ""}` : ""}
         <input type="text" class="line-input" id="d-sub-new" placeholder="+ Add a subtask, press Enter" aria-label="Add a subtask">
       </div>
       <div class="d-sec">
@@ -842,6 +850,8 @@ dialog h2 { margin: 0; font-size: 17px; }
       else toggleDone(chk.dataset.check);
       return;
     }
+    const fold = tgt.closest("[data-fold]");
+    if (fold) { const k = fold.dataset.fold; ui.openFolds.has(k) ? ui.openFolds.delete(k) : ui.openFolds.add(k); render({ skipDetail: true }); return; }
     const dt = tgt.closest("[data-del-task]");
     if (dt) {
       e.stopPropagation();
@@ -1003,6 +1013,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   });
   det.addEventListener("click", e => {
     const t = S.tasks[ui.sel]; if (!t) return;
+    if (e.target.closest("[data-subfold]")) { ui.showSubDone = !ui.showSubDone; renderDetail(true); return; }
     const p = e.target.closest("[data-prio]"); if (p) { patchTask(t.id, { priority: +p.dataset.prio }); renderDetail(true); return; }
     const sc = e.target.closest("[data-sub-check]"); if (sc) { patchTask(t.id, { subtasks: (t.subtasks || []).map(s => s.id === sc.dataset.subCheck ? { ...s, done: !s.done } : s) }); renderDetail(true); return; }
     const sx = e.target.closest("[data-sub-del]"); if (sx) { patchTask(t.id, { subtasks: (t.subtasks || []).filter(s => s.id !== sx.dataset.subDel) }); renderDetail(true); return; }
