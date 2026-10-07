@@ -472,6 +472,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   const COLLS = Object.keys(S);
   let db = null, loaded = false, syncNote = "";
   const all = c => Object.values(S[c]).filter(x => !x.deleted);
+  const dotColor = l => l.group ? "var(--p0)" : l.color;
   const getT = id => { const t = S.tasks[id]; return t && !t.deleted ? t : null; };
   const trashed = () => Object.values(S.tasks).filter(t => t.deleted).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
   const URL_RE = /https?:\/\/[^\s<>"')]+/g;
@@ -632,7 +633,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     const s = SMART.find(x => x[0] === key); if (s) return { name: s[1] };
     if (key === "done") return { name: "Completed" };
     if (key === "trash") return { name: "Trash" };
-    if (key.startsWith("list:")) { const l = S.lists[key.slice(5)]; return l ? { name: l.name, color: l.color } : null; }
+    if (key.startsWith("list:")) { const l = S.lists[key.slice(5)]; return l ? { name: l.name, color: dotColor(l) } : null; }
     if (key.startsWith("tag:")) return { name: "#" + key.slice(4) };
     if (key.startsWith("group:")) { const g = key.slice(6); return all("lists").some(l => l.group === g) ? { name: g } : null; }
     return null;
@@ -708,7 +709,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     const lists = all("lists").sort((a, b) => (a.order || 0) - (b.order || 0) || (a.created || 0) - (b.created || 0));
     const plain = lists.filter(l => !l.group);
     const groups = [...new Set(lists.filter(l => l.group).map(l => l.group))];
-    const listRow = l => row("list:" + l.id, `<span class="dot" style="background:${l.color}"></span>`, l.name, `<button class="row-edit" data-list-edit="${l.id}" aria-label="Edit list ${esc(l.name)}">${ic("edit", 14)}</button>`);
+    const listRow = l => row("list:" + l.id, `<span class="dot" style="background:${dotColor(l)}"></span>`, l.name, `<button class="row-edit" data-list-edit="${l.id}" aria-label="Edit list ${esc(l.name)}">${ic("edit", 14)}</button>`);
     const tags = [...new Set(all("tasks").flatMap(t => t.tags || []))].sort();
     const hasEx = COLLS.some(c => all(c).some(x => x.example));
     $("#side").innerHTML =
@@ -736,7 +737,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     else if (t.notes) meta.push(`<span title="Has notes">${ic("note", 12)}</span>`);
     if (escalated(t)) meta.push(`<span class="chip-urgent" title="Important task due within 3 days">Urgent</span>`);
     (t.tags || []).forEach(g => meta.push(`<span class="chip-tag">#${esc(g)}</span>`));
-    if (l) meta.push(`<span><i class="dot" style="background:${l.color};width:7px;height:7px;margin:0"></i>${esc(l.name)}</span>`);
+    if (l) meta.push(`<span><i class="dot" style="background:${dotColor(l)};width:7px;height:7px;margin:0"></i>${esc(l.name)}</span>`);
     const dueTxt = t.due && !o.hideDate ? fmtDue(t) : t.time ? fmtTime(t.time) : "";
     return `<div class="task ${t.done ? "is-done" : ""} ${ui.sel === t.id ? "sel" : ""}" data-task="${t.id}" ${o.drag ? 'draggable="true"' : ""} ${o.gk ? `data-gk="${esc(o.gk)}"` : ""}>
       <button class="cb" style="--pc:${priColor(effPri(t))}" data-check="${t.id}" aria-label="${t.done ? "Mark as not done" : "Complete"}: ${esc(t.title)}">${CHECK}</button>
