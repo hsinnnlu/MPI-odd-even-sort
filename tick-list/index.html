@@ -102,6 +102,33 @@ button { cursor: pointer; }
 .group-h .n { font-weight: 500; font-family: var(--f-mono); }
 .group-h.late { color: var(--late); }
 .group-h.now { color: var(--accent); }
+.group-h.behind { color: var(--p2); }
+.btn.sm { padding: 4px 10px; font-size: 12.5px; }
+.d-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -4px; }
+.d-links a { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; font-size: 12.5px; color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 3px 8px; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.d-links a:hover { text-decoration: underline; }
+.esc-note { font-size: 12px; color: var(--p3); background: color-mix(in srgb, var(--p3) 10%, transparent); border-radius: 8px; padding: 6px 10px; }
+.chip-urgent { color: var(--p3); font-weight: 700; }
+.search { position: relative; }
+.search input { border: 1px solid var(--line); border-radius: 999px; background: var(--surface); padding: 6px 12px 6px 32px; width: 200px; max-width: 100%; color: var(--fg); }
+.search .ic { position: absolute; left: 10px; top: 8px; color: var(--muted); }
+.vh { flex-wrap: wrap; }
+.task.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
+.task.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
+.sub.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
+.sub.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
+.sub .grip { cursor: grab; color: var(--muted); opacity: .5; padding: 0 2px; font-size: 12px; letter-spacing: -2px; user-select: none; }
+.sub:hover .grip { opacity: 1; }
+.sub { grid-template-columns: auto auto minmax(0, 1fr) auto; }
+.trash-row .task-right { gap: 6px; }
+.trash-note { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); padding: 2px 6px 6px; }
+.list-link { font-size: 12.5px; font-weight: 600; color: var(--accent); text-decoration: none; background: var(--accent-soft); border-radius: 999px; padding: 4px 10px; white-space: nowrap; }
+.list-link:hover { text-decoration: underline; }
+.remind-wrap { position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); right: 16px; z-index: 60; display: grid; gap: 8px; width: min(340px, calc(100vw - 32px)); }
+.remind { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--p3); border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.18); padding: 10px 12px; display: grid; gap: 6px; }
+.remind b { font-size: 14px; overflow-wrap: anywhere; }
+.remind small { color: var(--muted); }
+.remind .acts { display: flex; gap: 6px; justify-content: flex-end; }
 .group-h.alldone { color: var(--accent); }
 .done-fold { border: 0; background: none; color: var(--muted); font-size: 12.5px; font-weight: 600; padding: 6px 10px; text-align: left; border-radius: 8px; display: flex; gap: 6px; align-items: center; width: 100%; }
 .done-fold:hover { background: var(--hover); color: var(--fg); }
@@ -260,6 +287,12 @@ dialog h2 { margin: 0; font-size: 17px; }
   .cchip, .cmore { display: none; }
   .cdots { display: flex; }
   .matrix { grid-template-columns: minmax(0, 1fr); }
+  .comp-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ctl select, .ctl input[type=date], .ctl input[type=time] { min-width: 0; width: 100%; }
+  .search input { width: 100%; }
+  .search { flex: 1 1 100%; order: 3; }
+  .group-h { flex-wrap: wrap; }
+  .task-right { flex-wrap: wrap; justify-content: flex-end; }
 }
 @media (min-width: 761px) { .side.hidden-wide { display: none; } }
 @media (prefers-reduced-motion: reduce) { .detail, .side, .ring .prg, .cb { transition: none; } }
@@ -281,9 +314,11 @@ dialog h2 { margin: 0; font-size: 17px; }
       <div class="vh">
         <button class="icon-btn menu-btn" data-open-side aria-label="Open lists"></button>
         <h1 id="list-title">Today</h1>
-        <button class="icon-btn" id="toggle-done" title="Show or hide completed tasks"></button>
+        <a class="list-link" id="list-link" target="_blank" rel="noopener" hidden>Course website ↗</a>
+        <label class="search"><span id="search-ic"></span><input type="search" id="search" placeholder="Search tasks" aria-label="Search tasks"></label>
+        <button class="btn sm" id="toggle-done"></button>
       </div>
-      <div class="composer" id="composer">
+      <div class="composer-slot"><div class="composer" id="composer">
         <form class="qa" id="qa-form" autocomplete="off">
           <span id="qa-ic"></span>
           <input id="qa" type="text" placeholder="Add a task, e.g. HW2 next fri 11:59pm #homework !high" aria-label="Task name">
@@ -300,6 +335,7 @@ dialog h2 { margin: 0; font-size: 17px; }
           <textarea id="c-notes" class="input" rows="2" placeholder="Notes (optional)" aria-label="Notes"></textarea>
           <div class="comp-foot"><div class="qa-hint" id="qa-hint"></div><div class="r"><button type="button" class="btn" id="c-cancel">Cancel</button><button type="button" class="btn primary" id="c-add">Add task</button></div></div>
         </div>
+      </div>
       </div>
       <datalist id="tag-opts"></datalist>
       <div id="task-list"></div>
@@ -318,17 +354,15 @@ dialog h2 { margin: 0; font-size: 17px; }
       <div class="cal"><div class="cal-grid" id="cal-grid"></div></div>
       <div class="agenda">
         <div class="vh"><h1 id="agenda-title" style="font-size:16px"></h1></div>
-        <form class="qa" id="cal-qa-form" autocomplete="off">
-          <span class="qa-ic"></span>
-          <input id="cal-qa" type="text" placeholder="Add a task to this day" aria-label="Add a task to the selected day">
-        </form>
+        <div class="composer-slot"></div>
         <div id="agenda-list"></div>
       </div>
     </section>
 
     <!-- Matrix -->
     <section class="view" id="view-matrix" hidden>
-      <div class="vh"><h1>Eisenhower Matrix</h1><span class="muted" style="font-size:12.5px">Sorted by priority. Drag a task to another quadrant.</span></div>
+      <div class="vh"><h1>Eisenhower Matrix</h1><span class="muted" style="font-size:12.5px">Sorted by priority. Drag a task to another quadrant. Important tasks move to Urgent 3 days before they're due.</span></div>
+      <div class="composer-slot"></div>
       <div class="matrix" id="matrix">
         <div class="quad" data-quad="3" style="--qc:var(--p3)"><div class="quad-h">Urgent &amp; important<small data-qcount="3"></small></div><div class="qlist" data-qlist="3"></div><form class="qa" data-qa-prio="3" autocomplete="off"><input id="qa-q3" type="text" placeholder="+ Add" aria-label="Add to urgent and important"></form></div>
         <div class="quad" data-quad="2" style="--qc:var(--p2)"><div class="quad-h">Important, not urgent<small data-qcount="2"></small></div><div class="qlist" data-qlist="2"></div><form class="qa" data-qa-prio="2" autocomplete="off"><input id="qa-q2" type="text" placeholder="+ Add" aria-label="Add to important, not urgent"></form></div>
@@ -349,10 +383,12 @@ dialog h2 { margin: 0; font-size: 17px; }
     <div class="field"><label for="l-name">Name</label><input class="input" id="l-name" type="text" required maxlength="40"></div>
     <div class="field"><label>Color</label><div class="colors" id="l-colors"></div></div>
     <div class="field"><label for="l-group">Section (optional)</label><input class="input" id="l-group" type="text" list="group-opts" maxlength="40" placeholder="e.g. 2026 Fall"><datalist id="group-opts"></datalist></div>
+    <div class="field"><label for="l-url">Website (optional)</label><input class="input" id="l-url" type="url" placeholder="https://…"></div>
     <div class="field"><label for="l-week">Week 1 starts on (optional)</label><input class="input" id="l-week" type="date"><span class="muted" style="font-size:12px">Set this to group the list's tasks by week, like a course syllabus.</span></div>
     <div class="dlg-actions"><button type="button" class="btn danger" id="l-del">Delete list</button><div class="r"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary" type="submit">Save</button></div></div>
   </form>
 </dialog>
+<div class="remind-wrap" id="remind" aria-live="polite"></div>
 <div class="toast" id="toast" hidden><span id="toast-msg"></span><button id="toast-act" hidden></button></div>
 
 <script>
@@ -385,6 +421,8 @@ dialog h2 { margin: 0; font-size: 17px; }
     repeat: '<path d="m17 3 3 3-3 3M4 11V9a3 3 0 0 1 3-3h13M7 21l-3-3 3-3M20 13v2a3 3 0 0 1-3 3H4"/>',
     back: '<path d="M15 5 8 12l7 7"/>', left: '<path d="M15 6l-6 6 6 6"/>', right: '<path d="m9 6 6 6-6 6"/>',
     edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>', eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/>',
+    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>', restore: '<path d="M4 12a8 8 0 1 0 2.3-5.6L4 8.7"/><path d="M4 4v4.7h4.7"/>',
     note: '<path d="M6 3.5h9l3.5 3.5v13.5H6z"/><path d="M9 11h6M9 15h6"/>', sub: '<path d="M5 4v9a3 3 0 0 0 3 3h11M15 12l4 4-4 4"/>',
   };
   const ic = (n, s = 18, w = 1.8) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
@@ -430,7 +468,14 @@ dialog h2 { margin: 0; font-size: 17px; }
   const S = { lists: {}, tasks: {} };
   const COLLS = Object.keys(S);
   let db = null, loaded = false, syncNote = "";
-  const all = c => Object.values(S[c]);
+  const all = c => Object.values(S[c]).filter(x => !x.deleted);
+  const getT = id => { const t = S.tasks[id]; return t && !t.deleted ? t : null; };
+  const trashed = () => Object.values(S.tasks).filter(t => t.deleted).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
+  const URL_RE = /https?:\/\/[^\s<>"')]+/g;
+  const urlsIn = s => [...new Set(String(s || "").match(URL_RE) || [])];
+  function shortUrl(u) { try { const x = new URL(u); const p = (x.hostname.replace(/^www\./, "") + x.pathname).replace(/\/$/, ""); return p.length > 42 ? p.slice(0, 40) + "…" : p; } catch { return u.slice(0, 40); } }
+  const effPri = t => (!t.done && (t.priority || 0) === 2 && t.due && diffDays(t.due, today()) <= 3) ? 3 : (t.priority || 0);
+  const escalated = t => effPri(t) !== (t.priority || 0);
   const pend = {}, pendT = {};
 
   function persistLocal() { if (!db) lsSet(LS_DATA, S); }
@@ -463,9 +508,9 @@ dialog h2 { margin: 0; font-size: 17px; }
     try { if (window.claude?.use) ns = await window.claude.use("db"); } catch { ns = null; }
     if (!ns) {
       const d = lsGet(LS_DATA); if (d) COLLS.forEach(c => S[c] = d[c] || {});
-      loaded = true; syncNote = "Saved in this browser."; render(); return;
+      loaded = true; syncNote = "Saved in this browser."; render(); setTimeout(purgeOld, 1500); return;
     }
-    db = ns; syncNote = "Synced to the cloud. Open it on any device.";
+    db = ns; syncNote = "Synced to the cloud and private to you. Open it on any device.";
     let waiting = COLLS.length;
     COLLS.forEach(c => {
       let first = true;
@@ -474,7 +519,7 @@ dialog h2 { margin: 0; font-size: 17px; }
         snap.docs.forEach(d => { next[d.id] = { ...d.data(), id: d.id }; });
         if (c === "tasks") for (const id in pend) if (next[id]) next[id] = { ...next[id], ...pend[id] };
         S[c] = next;
-        if (first) { first = false; if (--waiting === 0) loaded = true; }
+        if (first) { first = false; if (--waiting === 0) { loaded = true; setTimeout(purgeOld, 1500); } }
         render();
       }, err => { if (err?.code !== "revoked") toast("Sync stopped. Reload the page to reconnect."); });
     });
@@ -510,8 +555,8 @@ dialog h2 { margin: 0; font-size: 17px; }
     const t0 = today();
     const take = (re, fn) => { const m = s.match(re); if (!m) return false; if (fn(m) === false) return false; s = s.replace(m[0], " " + MK + " "); return true; };
     s = s.replace(/\s#([^\s#!^]+)/g, (m, t) => { r.tags.push(t); r.tokens.push("#" + t); return " "; });
-    s = s.replace(/\s!(high|hi|medium|med|low|lo|[123])(?=\s)/i, (m, v) => {
-      v = v.toLowerCase(); r.priority = v.startsWith("h") || v === "1" ? 3 : v.startsWith("m") || v === "2" ? 2 : 1;
+    s = s.replace(/\s[!！](high|hi|medium|med|low|lo|[123]|高|中|低)(?=\s)/i, (m, v) => {
+      v = v.toLowerCase(); r.priority = v.startsWith("h") || v === "1" || v === "高" ? 3 : v.startsWith("m") || v === "2" || v === "中" ? 2 : 1;
       r.tokens.push(PRI.find(p => p.v === r.priority).n + " priority"); return " ";
     });
     s = s.replace(/\s\^(\S+)/, (m, n) => { const l = all("lists").find(l => l.name.toLowerCase() === n.toLowerCase()); if (!l) return m; r.listId = l.id; r.tokens.push("List: " + l.name); return " "; });
@@ -525,6 +570,9 @@ dialog h2 { margin: 0; font-size: 17px; }
       else if (w === "year" || w === "yearly") r.repeat = "yearly";
       else { r.repeat = "weekly"; r.due = upcoming(dowOf(w)); }
       r.tokens.push(REPEAT[r.repeat]);
+    }) || take(/每天|每日|每個?工作日|每週|每周|每星期|每禮拜|每月|每年/, m => {
+      const w = m[0]; r.repeat = /工作日/.test(w) ? "weekdays" : /天|日/.test(w) ? "daily" : /月/.test(w) ? "monthly" : /年/.test(w) ? "yearly" : "weekly";
+      r.tokens.push(REPEAT[r.repeat]);
     });
     if (!r.due) {
       take(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/, m => { r.due = ymd(new Date(+m[1], m[2] - 1, +m[3])); })
@@ -537,7 +585,12 @@ dialog h2 { margin: 0; font-size: 17px; }
       || take(/\bin\s+(\d{1,3})\s+days?\b/i, m => { r.due = addDays(t0, +m[1]); })
       || take(/\bin\s+(\d{1,2})\s+weeks?\b/i, m => { r.due = addDays(t0, 7 * m[1]); })
       || take(new RegExp("\\b(?:(next|this)\\s+)?" + FULLDAY + "\\b", "i"), m => { r.due = upcoming(dowOf(m[2]), /next/i.test(m[1] || "")); })
-      || take(new RegExp("\\b(next|this|on|by)\\s+" + SHORTDAY + "\\b", "i"), m => { r.due = upcoming(dowOf(m[2]), /next/i.test(m[1])); });
+      || take(new RegExp("\\b(next|this|on|by)\\s+" + SHORTDAY + "\\b", "i"), m => { r.due = upcoming(dowOf(m[2]), /next/i.test(m[1])); })
+      || take(/(\d{4})年(\d{1,2})月(\d{1,2})[日號号]?/, m => { r.due = ymd(new Date(+m[1], m[2] - 1, +m[3])); })
+      || take(/(\d{1,2})月(\d{1,2})[日號号]?/, m => { r.due = mdNext(+m[1], +m[2]); })
+      || take(/大後天|後天|明天|今天|今晚|明晚|明早|今早/, m => { const w = m[0]; r.due = addDays(t0, w === "大後天" ? 3 : w === "後天" ? 2 : w[0] === "明" ? 1 : 0); evening = /晚/.test(w); })
+      || take(/(下|這|本)?(?:週|周|星期|禮拜)([一二三四五六日天])/, m => { r.due = upcoming({ "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "日": 0, "天": 0 }[m[2]], m[1] === "下"); })
+      || take(/(\d{1,3})天後/, m => { r.due = addDays(t0, +m[1]); });
     }
     const setTime = (h, mi) => { if (h > 23 || mi > 59) return false; r.time = `${pad(h)}:${pad(mi)}`; if (!r.due) r.due = t0; };
     take(/\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)(?=[\s,.]|$)/i, m => {
@@ -547,7 +600,13 @@ dialog h2 { margin: 0; font-size: 17px; }
     })
     || take(/\b(?:at\s+)?([01]?\d|2[0-3]):([0-5]\d)\b/, m => { let h = +m[1]; if (evening && h < 12) h += 12; return setTime(h, +m[2]); })
     || take(/\b(?:at\s+)?(noon|midnight)\b/i, m => setTime(/noon/i.test(m[1]) ? 12 : 0, 0))
-    || (evening && take(/\bat\s+(\d{1,2})\b/i, m => { const h = +m[1]; return h >= 1 && h <= 11 ? setTime(h + 12, 0) : false; }));
+    || (evening && take(/\bat\s+(\d{1,2})\b/i, m => { const h = +m[1]; return h >= 1 && h <= 11 ? setTime(h + 12, 0) : false; }))
+    || take(/(上午|早上|中午|下午|晚上)?\s?(\d{1,2})[點点](半|(\d{1,2})分?)?/, m => {
+      let h = +m[2]; const mi = m[3] === "半" ? 30 : m[4] ? +m[4] : 0;
+      if ((/下午|晚上/.test(m[1] || "") || (evening && !m[1])) && h < 12) h += 12;
+      if (m[1] === "中午" && h < 6) h += 12;
+      return setTime(h, mi);
+    });
     if (r.repeat && !r.due) r.due = t0;
     if (r.due) r.tokens.unshift(fmtDue({ due: r.due, time: r.time }));
     s = s.replace(new RegExp("\\b(on|at|by|due|for|in)\\s*" + MK, "gi"), MK).split(MK).join(" ");
@@ -568,6 +627,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   function navInfo(key) {
     const s = SMART.find(x => x[0] === key); if (s) return { name: s[1] };
     if (key === "done") return { name: "Completed" };
+    if (key === "trash") return { name: "Trash" };
     if (key.startsWith("list:")) { const l = S.lists[key.slice(5)]; return l ? { name: l.name, color: l.color } : null; }
     if (key.startsWith("tag:")) return { name: "#" + key.slice(4) };
     if (key.startsWith("group:")) { const g = key.slice(6); return all("lists").some(l => l.group === g) ? { name: g } : null; }
@@ -579,7 +639,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     if (key === "today") return t => t.due && t.due <= t0;
     if (key === "tomorrow") return t => t.due === addDays(t0, 1);
     if (key === "week") return t => t.due && t.due <= addDays(t0, 6);
-    if (key === "all" || key === "done") return () => true;
+    if (key === "all" || key === "done" || key === "trash") return () => true;
     if (key.startsWith("list:")) { const id = key.slice(5); return t => t.listId === id; }
     if (key.startsWith("tag:")) { const g = key.slice(4); return t => (t.tags || []).includes(g); }
     if (key.startsWith("group:")) { const ids = new Set(all("lists").filter(l => l.group === key.slice(6)).map(l => l.id)); return t => ids.has(t.listId); }
@@ -598,7 +658,8 @@ dialog h2 { margin: 0; font-size: 17px; }
     if (key.startsWith("group:")) return all("lists").filter(l => l.group === key.slice(6) && l.weekStart).map(l => l.weekStart).sort()[0] || null;
     return null;
   }
-  const sortTasks = (a, b) => (a.due || "9999").localeCompare(b.due || "9999") || (a.time || "99").localeCompare(b.time || "99") || (b.priority || 0) - (a.priority || 0) || (a.created || 0) - (b.created || 0);
+  const sortTasks = (a, b) => (a.due || "9999").localeCompare(b.due || "9999") || (a.time || "99").localeCompare(b.time || "99")
+    || (a.order != null && b.order != null ? a.order - b.order : 0) || effPri(b) - effPri(a) || (a.created || 0) - (b.created || 0);
   function groupOf(t) {
     if (!t.due) return "none";
     const d = diffDays(t.due, today());
@@ -616,12 +677,15 @@ dialog h2 { margin: 0; font-size: 17px; }
     if (ui.view === "tasks") renderTasks();
     if (ui.view === "calendar") renderCalendar();
     if (ui.view === "matrix") renderMatrix();
+    placeComposer();
     if (!opts.skipDetail) renderDetail();
     const hasDetail = ["tasks", "calendar", "matrix"].includes(ui.view);
     $("#detail").hidden = !hasDetail;
-    $("#app").classList.toggle("detail-open", hasDetail && !!S.tasks[ui.sel]);
+    $("#app").classList.toggle("detail-open", hasDetail && !!getT(ui.sel));
     $("#scrim").hidden = !$("#app").classList.contains("side-open");
+    clearTimeout(remT); remT = setTimeout(() => checkRemind(), 400);
   }
+  let remT = null;
 
   function renderRail() {
     const items = { tasks: "Tasks", calendar: "Calendar", matrix: "Matrix" };
@@ -652,6 +716,7 @@ dialog h2 { margin: 0; font-size: 17px; }
         : `<div class="muted" style="padding:4px 10px;font-size:12.5px">${loaded ? "Press + to create a list" : "Loading…"}</div>`) +
       (tags.length ? `<div class="side-h"><span>TAGS</span></div>` + tags.map(g => row("tag:" + g, ic("tag", 16), g)).join("") : "") +
       `<div style="height:8px"></div><div class="nav-row ${ui.nav === "done" && ui.view === "tasks" ? "active" : ""}"><button class="nav-item" data-nav="done">${ic("done")}<span class="nm">Completed</span></button></div>` +
+      `<div class="nav-row ${ui.nav === "trash" && ui.view === "tasks" ? "active" : ""}"><button class="nav-item" data-nav="trash">${ic("trash")}<span class="nm">Trash</span><span class="count">${trashed().length || ""}</span></button></div>` +
       (hasEx ? `<div class="example-note"><span>You're looking at sample data. Edit it freely, or clear it all at once.</span><button id="clear-ex">Clear sample data</button></div>` : "") +
       `<div class="sync">${esc(syncNote)}</div>`;
   }
@@ -662,36 +727,46 @@ dialog h2 { margin: 0; font-size: 17px; }
     const dd = t.due ? diffDays(t.due, today()) : null;
     const meta = [];
     if (sub.length) meta.push(`<span>${ic("sub", 12)}${sd}/${sub.length}</span>`);
-    if (t.notes) meta.push(`<span title="Has notes">${ic("note", 12)}</span>`);
+    const links = urlsIn(t.notes);
+    if (links.length) meta.push(`<span title="${plural(links.length, "link")}">${ic("link", 12)}${links.length}</span>`);
+    else if (t.notes) meta.push(`<span title="Has notes">${ic("note", 12)}</span>`);
+    if (escalated(t)) meta.push(`<span class="chip-urgent" title="Important task due within 3 days">Urgent</span>`);
     (t.tags || []).forEach(g => meta.push(`<span class="chip-tag">#${esc(g)}</span>`));
     if (l) meta.push(`<span><i class="dot" style="background:${l.color};width:7px;height:7px;margin:0"></i>${esc(l.name)}</span>`);
     const dueTxt = t.due && !o.hideDate ? fmtDue(t) : t.time ? fmtTime(t.time) : "";
-    return `<div class="task ${t.done ? "is-done" : ""} ${ui.sel === t.id ? "sel" : ""}" data-task="${t.id}" ${o.drag ? 'draggable="true"' : ""}>
-      <button class="cb" style="--pc:${priColor(t.priority)}" data-check="${t.id}" aria-label="${t.done ? "Mark as not done" : "Complete"}: ${esc(t.title)}">${CHECK}</button>
+    return `<div class="task ${t.done ? "is-done" : ""} ${ui.sel === t.id ? "sel" : ""}" data-task="${t.id}" ${o.drag ? 'draggable="true"' : ""} ${o.gk ? `data-gk="${esc(o.gk)}"` : ""}>
+      <button class="cb" style="--pc:${priColor(effPri(t))}" data-check="${t.id}" aria-label="${t.done ? "Mark as not done" : "Complete"}: ${esc(t.title)}">${CHECK}</button>
       <div style="min-width:0"><div class="task-title">${esc(t.title)}</div>${meta.length ? `<div class="task-meta">${meta.join("")}</div>` : ""}</div>
       <div class="task-right">${t.repeat ? `<span title="${REPEAT[t.repeat]}">${ic("repeat", 13)}</span>` : ""}${dueTxt ? `<span class="due ${!t.done && dd < 0 ? "late" : !t.done && dd === 0 ? "today" : ""}">${esc(dueTxt)}</span>` : ""}<button class="task-del" data-del-task="${t.id}" title="Delete task" aria-label="Delete ${esc(t.title)}">${ic("trash", 15)}</button></div>
     </div>`;
   }
   const emptyBox = (icon, msg) => `<div class="empty">${ic(icon, 48, 1.4)}<div>${loaded ? msg : "Loading…"}</div></div>`;
 
-  let lastNav = null;
   function renderTasks() {
     if (!navInfo(ui.nav)) ui.nav = "today";
     const info = navInfo(ui.nav);
-    $("#list-title").innerHTML = (info.color ? `<span class="dot" style="background:${info.color};display:inline-block;margin:0 8px 0 0"></span>` : "") + esc(info.name);
-    $("#toggle-done").innerHTML = ic("eye");
+    const q = (ui.q || "").trim().toLowerCase();
+    $("#list-title").innerHTML = q ? "Search" : (info.color ? `<span class="dot" style="background:${info.color};display:inline-block;margin:0 8px 0 0"></span>` : "") + esc(info.name);
+    const lst = ui.nav.startsWith("list:") ? S.lists[ui.nav.slice(5)] : null;
+    $("#list-link").hidden = !(lst && lst.url) || !!q;
+    if (lst && lst.url) $("#list-link").href = lst.url;
+    $("#toggle-done").textContent = ui.showDone ? "Hide completed" : "Show completed";
     $("#toggle-done").setAttribute("aria-pressed", ui.showDone);
-    $("#toggle-done").hidden = ui.nav === "done";
-    $("#composer").hidden = ui.nav === "done";
+    $("#toggle-done").hidden = ui.nav === "done" || ui.nav === "trash" || !!q;
     const pred = basePred(ui.nav);
-    if (ui.nav !== lastNav) { lastNav = ui.nav; compReset(false); }
-    else if (!comp.open) compReset(false);
-    else { const v = $("#c-list").value; $("#c-list").innerHTML = listOptions(v); $("#c-list").value = v; }
-    $("#tag-opts").innerHTML = [...new Set([...COURSE_TAGS, ...allTags()])].map(g => `<option value="${esc(g)}"></option>`).join("");
     const showList = !ui.nav.startsWith("list:");
     const ws = weekStartFor(ui.nav);
     let html = "";
-    if (ws) html = renderWeeks(pred, ws, showList);
+    if (q) {
+      const hit = t => [t.title, t.notes, ...(t.tags || []), ...(t.subtasks || []).map(s => s.t)].some(x => String(x || "").toLowerCase().includes(q));
+      const rs = all("tasks").filter(hit).sort((a, b) => a.done - b.done || sortTasks(a, b));
+      html = rs.length ? `<div class="group"><div class="group-h">${plural(rs.length, "result")}</div>${rs.map(t => taskRow(t, { showList: true })).join("")}</div>` : emptyBox("search", `No tasks match “${esc(ui.q.trim())}”.`);
+    } else if (ui.nav === "trash") {
+      const ts = trashed();
+      html = ts.length ? `<div class="trash-note"><span>Deleted tasks stay here for 30 days, then they're removed for good.</span><button class="btn sm danger" id="empty-trash">Empty trash</button></div>` +
+        ts.map(t => `<div class="task trash-row" data-trash="${t.id}"><span class="cb" style="--pc:var(--p0)"></span><div style="min-width:0"><div class="task-title">${esc(t.title)}</div><div class="task-meta"><span>Deleted ${t.deletedAt ? fmtMD(ymd(new Date(t.deletedAt))) : ""}</span>${S.lists[t.listId] ? `<span>${esc(S.lists[t.listId].name)}</span>` : ""}</div></div><div class="task-right"><button class="btn sm" data-restore="${t.id}">${ic("restore", 14)}Restore</button><button class="btn sm danger" data-purge="${t.id}">Delete forever</button></div></div>`).join("")
+        : emptyBox("trash", "Trash is empty.");
+    } else if (ws) html = renderWeeks(pred, ws, showList);
     else if (ui.nav === "done") {
       const ds = all("tasks").filter(t => t.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
       const byDay = {};
@@ -701,7 +776,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     } else {
       const open = all("tasks").filter(t => !t.done && pred(t)).sort(sortTasks);
       const groups = {}; open.forEach(t => (groups[groupOf(t)] = groups[groupOf(t)] || []).push(t));
-      html = GROUPS.filter(([k]) => groups[k]).map(([k, n]) => `<div class="group"><div class="group-h ${k === "overdue" ? "late" : ""}">${n} <span class="n">${groups[k].length}</span></div>${groups[k].map(t => taskRow(t, { showList })).join("")}</div>`).join("");
+      html = GROUPS.filter(([k]) => groups[k]).map(([k, n]) => `<div class="group"><div class="group-h ${k === "overdue" ? "late" : ""}">${n} <span class="n">${groups[k].length}</span></div>${groups[k].map(t => taskRow(t, { showList, drag: true, gk: ui.nav + "|" + k })).join("")}</div>`).join("");
       if (!open.length) html = emptyBox("tasks", ui.nav === "today" ? "All done for today. Add a task above. You can type dates like “tomorrow 3pm” or tags like “#work”." : "Nothing here yet. Add a task above.");
       const done = all("tasks").filter(t => t.done && pred(t)).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 30);
       if (done.length && ui.showDone) html += `<div class="group"><div class="group-h">Completed <span class="n">${done.length}</span></div>${done.map(t => taskRow(t, { showList })).join("")}</div>`;
@@ -726,13 +801,13 @@ dialog h2 { margin: 0; font-size: 17px; }
       else { const a = addDays(ws, (k - 1) * 7), b = addDays(a, 6); label = `Week ${k} <span class="range">· ${fmtMD(a)} – ${fmtMD(b)}</span>`; }
       const late = k !== 9999 && k < nowWk && done < list.length;
       const allDone = doneT.length === list.length;
-      return `<div class="group ${k < nowWk && !late ? "past" : ""}"><div class="group-h ${k === nowWk ? "now" : late ? "late" : allDone ? "alldone" : ""}">${label}${k === nowWk ? ' <span class="now-tag">This week</span>' : ""}<span class="pill">${done}/${list.length}</span></div>${openT.map(t => taskRow(t, { showList })).join("")}${doneT.length ? `<button class="done-fold" data-fold="${esc(fk)}" aria-expanded="${exp}"><span class="ar">${exp ? "▾" : "▸"}</span>${allDone ? "All done" : "Completed"} · ${doneT.length}</button>${exp ? doneT.map(t => taskRow(t, { showList })).join("") : ""}` : ""}</div>`;
+      return `<div class="group ${k < nowWk && !late ? "past" : ""}"><div class="group-h ${k === nowWk ? "now" : late ? "behind" : allDone ? "alldone" : ""}" ${late ? `title="${list.length - done} not done yet"` : ""}>${label}${k === nowWk ? ' <span class="now-tag">This week</span>' : ""}<span class="pill">${done}/${list.length}</span></div>${openT.map(t => taskRow(t, { showList, drag: true, gk: fk })).join("")}${doneT.length ? `<button class="done-fold" data-fold="${esc(fk)}" aria-expanded="${exp}"><span class="ar">${exp ? "▾" : "▸"}</span>${allDone ? "All done" : "Completed"} · ${doneT.length}</button>${exp ? doneT.map(t => taskRow(t, { showList })).join("") : ""}` : ""}</div>`;
     }).join("");
   }
 
-  const subRow = s => `<div class="sub ${s.done ? "done" : ""}"><button class="cb ${s.done ? "on" : ""}" data-sub-check="${s.id}" aria-label="${s.done ? "Uncheck" : "Check"} subtask">${CHECK}</button><input type="text" id="sub-${s.id}" data-sub-text="${s.id}" value="${esc(s.t)}" aria-label="Subtask"><button class="icon-btn" data-sub-del="${s.id}" aria-label="Delete subtask">${ic("x", 14)}</button></div>`;
+  const subRow = s => `<div class="sub ${s.done ? "done" : ""}" data-sub-row="${s.id}"><span class="grip" draggable="true" data-sub-grip="${s.id}" title="Drag to reorder" aria-hidden="true">⋮⋮</span><button class="cb ${s.done ? "on" : ""}" data-sub-check="${s.id}" aria-label="${s.done ? "Uncheck" : "Check"} subtask">${CHECK}</button><input type="text" id="sub-${s.id}" data-sub-text="${s.id}" value="${esc(s.t)}" aria-label="Subtask"><button class="icon-btn" data-sub-del="${s.id}" aria-label="Delete subtask">${ic("x", 14)}</button></div>`;
   function renderDetail(force) {
-    const el = $("#detail"), t = S.tasks[ui.sel];
+    const el = $("#detail"), t = getT(ui.sel);
     if (!t) { el.dataset.id = ""; el.innerHTML = `<div class="d-empty">${ic("tasks", 54, 1.3)}<div>Select a task to edit its date, subtasks and tags.</div></div>`; return; }
     const a = document.activeElement;
     if (!force && el.dataset.id === t.id && el.contains(a) && a.matches('input[type="text"], textarea')) return;
@@ -743,14 +818,16 @@ dialog h2 { margin: 0; font-size: 17px; }
     el.innerHTML = `<div class="d-wrap">
       <div class="d-top">
         <button class="icon-btn d-back" data-close-detail aria-label="Close details">${ic("back")}</button>
-        <button class="cb ${t.done ? "on" : ""}" style="--pc:${priColor(t.priority)}" data-check="${t.id}" aria-label="${t.done ? "Mark as not done" : "Complete task"}">${CHECK}</button>
+        <button class="cb ${t.done ? "on" : ""}" style="--pc:${priColor(effPri(t))}" data-check="${t.id}" aria-label="${t.done ? "Mark as not done" : "Complete task"}">${CHECK}</button>
         <input type="date" id="d-due" value="${t.due || ""}" aria-label="Date">
         <input type="time" id="d-time" value="${t.time || ""}" ${t.due ? "" : "disabled"} aria-label="Time">
         <span class="grow"></span>
         <div class="prio-pick" role="group" aria-label="Priority">${PRI.map(p => `<button data-prio="${p.v}" aria-pressed="${(t.priority || 0) === p.v}" title="${p.n} priority" aria-label="${p.n} priority" style="--pc:${p.c}">${ic("flag", 17, 2)}</button>`).join("")}</div>
       </div>
+      ${escalated(t) ? `<div class="esc-note">Due ${esc(fmtDue(t))}: this Important task now counts as Urgent &amp; important.</div>` : ""}
       <input type="text" id="d-title" class="d-title" value="${esc(t.title)}" maxlength="200" aria-label="Task name">
       <textarea id="d-notes" class="d-notes" placeholder="Notes, links, details…" aria-label="Notes">${esc(t.notes || "")}</textarea>
+      ${urlsIn(t.notes).length ? `<div class="d-links">${urlsIn(t.notes).map(u => `<a href="${esc(u)}" target="_blank" rel="noopener" title="${esc(u)}">${ic("link", 12)}${esc(shortUrl(u))}</a>`).join("")}</div>` : ""}
       <div class="d-sec">
         <div class="d-label"><span>SUBTASKS</span><span class="num">${subs.length ? `${sd}/${subs.length}` : ""}</span></div>
         ${subs.length ? `<div class="prog"><i style="width:${Math.round(sd / subs.length * 100)}%"></i></div>` : ""}
@@ -768,7 +845,7 @@ dialog h2 { margin: 0; font-size: 17px; }
       </div>
       <div class="d-foot">
         <span class="muted">${created ? `Created ${MO[created.getMonth()]} ${created.getDate()}` : ""}${t.example ? " · Sample" : ""}</span>
-        <div class="acts"><button class="btn danger" id="d-del">${ic("trash", 15)}Delete</button></div>
+        <div class="acts"><button class="btn danger" id="d-del">${ic("trash", 15)}Move to Trash</button></div>
       </div>
     </div>`;
     autoGrow($("#d-notes"));
@@ -792,25 +869,23 @@ dialog h2 { margin: 0; font-size: 17px; }
       const k = ymd(d), ts = (byDay[k] || []).sort((a, b) => a.done - b.done || sortTasks(a, b));
       html += `<div class="cell ${d.getMonth() !== M - 1 ? "other" : ""} ${k === t0 ? "today" : ""} ${k === ui.calDay ? "picked" : ""}" data-day="${k}" tabindex="0" role="button" aria-label="${fmtMD(k)}, ${plural(ts.length, "task")}">
         <span class="dn">${d.getDate()}</span>
-        ${ts.slice(0, 3).map(t => `<span class="cchip ${t.done ? "done" : ""}" style="--pc:${priColor(t.priority)}" data-task="${t.id}">${t.time ? fmtTime(t.time).replace(":00", "") + " " : ""}${esc(t.title)}</span>`).join("")}
+        ${ts.slice(0, 3).map(t => `<span class="cchip ${t.done ? "done" : ""}" style="--pc:${priColor(effPri(t))}" data-task="${t.id}">${t.time ? fmtTime(t.time).replace(":00", "") + " " : ""}${esc(t.title)}</span>`).join("")}
         ${ts.length > 3 ? `<span class="cmore">+${ts.length - 3} more</span>` : ""}
-        <span class="cdots">${ts.slice(0, 4).map(t => `<i style="--pc:${t.done ? "var(--p0)" : priColor(t.priority)}"></i>`).join("")}</span>
+        <span class="cdots">${ts.slice(0, 4).map(t => `<i style="--pc:${t.done ? "var(--p0)" : priColor(effPri(t))}"></i>`).join("")}</span>
       </div>`;
     }
     $("#cal-grid").innerHTML = html;
     const d = parseD(ui.calDay);
     $("#agenda-title").textContent = `${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
-    $("#cal-qa").placeholder = `Add a task to ${fmtMD(ui.calDay)}`;
     const ts = (byDay[ui.calDay] || []).sort((a, b) => a.done - b.done || sortTasks(a, b));
     $("#agenda-list").innerHTML = ts.length ? ts.map(t => taskRow(t, { showList: true, hideDate: true })).join("") : `<div class="muted" style="padding:8px 10px">${loaded ? "Nothing scheduled for this day." : "Loading…"}</div>`;
-    $$("#view-calendar .qa-ic").forEach(e => e.innerHTML = ic("plus", 16, 2.2));
   }
 
   // ---------- matrix ----------
   function renderMatrix() {
     const open = all("tasks").filter(t => !t.done).sort(sortTasks);
     [3, 2, 1, 0].forEach(p => {
-      const ts = open.filter(t => (t.priority || 0) === p);
+      const ts = open.filter(t => effPri(t) === p);
       $(`[data-qlist="${p}"]`).innerHTML = ts.length ? ts.map(t => taskRow(t, { showList: true, drag: true })).join("") : `<div class="muted" style="padding:8px;font-size:12.5px">${loaded ? "No tasks" : "Loading…"}</div>`;
       $(`[data-qcount="${p}"]`).textContent = ts.length;
     });
@@ -820,6 +895,20 @@ dialog h2 { margin: 0; font-size: 17px; }
   function select(id) {
     if (ui.sel && ui.sel !== id) flush(ui.sel);
     ui.sel = id; $("#app").classList.remove("side-open"); render();
+  }
+  function softDelete(id) {
+    const t = getT(id); if (!t) return;
+    flush(id); if (ui.sel === id) ui.sel = null;
+    patchTask(id, { deleted: true, deletedAt: Date.now() });
+    toast(`Moved “${t.title}” to Trash`, "Undo", () => restoreTask(id));
+  }
+  function restoreTask(id) {
+    const t = S.tasks[id]; if (!t) return;
+    patchTask(id, { deleted: false, deletedAt: null, listId: t.listId && t.listId !== "inbox" && !S.lists[t.listId] ? "inbox" : t.listId });
+  }
+  async function purgeOld() {
+    const cut = Date.now() - 30 * 864e5;
+    for (const t of trashed().filter(t => (t.deletedAt || 0) < cut)) await remove("tasks", t.id);
   }
   function toggleDone(id) {
     const t = S.tasks[id]; if (!t) return;
@@ -839,7 +928,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     const go = tgt.closest("[data-go]");
     if (go) { ui.view = go.dataset.go; saveUI(); $("#app").classList.remove("side-open"); render(); $("#main").scrollTop = 0; return; }
     const nav = tgt.closest("[data-nav]");
-    if (nav) { ui.nav = nav.dataset.nav; ui.view = "tasks"; saveUI(); $("#app").classList.remove("side-open"); render(); return; }
+    if (nav) { ui.nav = nav.dataset.nav; ui.view = "tasks"; ui.q = ""; $("#search").value = ""; saveUI(); $("#app").classList.remove("side-open"); render(); return; }
     if (tgt.closest("[data-open-side]")) { $("#app").classList.add("side-open"); render({ skipDetail: true }); return; }
     if (tgt.closest("#scrim")) { $("#app").classList.remove("side-open"); render({ skipDetail: true }); return; }
     const chk = tgt.closest("[data-check]");
@@ -856,11 +945,24 @@ dialog h2 { margin: 0; font-size: 17px; }
     if (dt) {
       e.stopPropagation();
       const id = dt.dataset.delTask, t = S.tasks[id]; if (!t) return;
-      clearTimeout(pendT[id]); delete pend[id]; if (ui.sel === id) ui.sel = null;
-      remove("tasks", id);
-      toast(`Deleted “${t.title}”`, "Undo", () => save("tasks", t));
+      softDelete(id);
       return;
     }
+    const rs = tgt.closest("[data-restore]"); if (rs) { restoreTask(rs.dataset.restore); toast("Task restored"); return; }
+    const pg = tgt.closest("[data-purge]");
+    if (pg) {
+      if (pg.classList.contains("armed")) { remove("tasks", pg.dataset.purge); toast("Deleted for good"); }
+      else { pg.classList.add("armed"); pg.textContent = "Confirm"; setTimeout(() => { if (pg.isConnected) { pg.classList.remove("armed"); pg.textContent = "Delete forever"; } }, 3000); }
+      return;
+    }
+    const et = tgt.closest("#empty-trash");
+    if (et) {
+      if (et.classList.contains("armed")) { (async () => { for (const t of trashed()) await remove("tasks", t.id); toast("Trash emptied"); })(); }
+      else { et.classList.add("armed"); et.textContent = `Delete ${plural(trashed().length, "task")} for good?`; setTimeout(() => { if (et.isConnected) { et.classList.remove("armed"); et.textContent = "Empty trash"; } }, 3500); }
+      return;
+    }
+    const ra = tgt.closest("[data-remind-open]"); if (ra) { dismissRemind(ra.dataset.remindOpen); ui.view = "tasks"; select(ra.dataset.remindOpen); return; }
+    const rd = tgt.closest("[data-remind-x]"); if (rd) { dismissRemind(rd.dataset.remindX); return; }
     const task = tgt.closest("[data-task]");
     if (task) { e.stopPropagation(); select(task.dataset.task); return; }
     const cell = tgt.closest("[data-day]:not([data-hcheck])");
@@ -882,7 +984,21 @@ dialog h2 { margin: 0; font-size: 17px; }
   $("#qa-ic").innerHTML = ic("plus", 16, 2.2);
   const COURSE_TAGS = ["homework", "reading", "lecture", "exam", "quiz", "project"];
   const comp = { open: false, touched: {}, priority: 0, manualTags: [], removedTags: [], parsedTags: [], defTags: [] };
+  let lastCompKey = null;
+  function placeComposer() {
+    const slot = $(`#view-${ui.view} .composer-slot`), el = $("#composer");
+    if (slot && el.parentNode !== slot) slot.appendChild(el);
+    el.hidden = ui.view === "tasks" && (ui.nav === "done" || ui.nav === "trash" || !!(ui.q || "").trim());
+    qa.placeholder = ui.view === "calendar" ? `Add a task to ${fmtMD(ui.calDay || today())}` : "Add a task, e.g. HW2 next fri 11:59pm #homework !high";
+    const key = ui.view + "|" + (ui.view === "tasks" ? ui.nav : ui.view === "calendar" ? ui.calDay : "");
+    if (key !== lastCompKey) { lastCompKey = key; if (comp.open && qa.value.trim()) { comp.touched.due = false; compSync(); } else compReset(false); }
+    else if (!comp.open) compReset(false);
+    else { const v = $("#c-list").value; $("#c-list").innerHTML = listOptions(v); $("#c-list").value = v; }
+    $("#tag-opts").innerHTML = [...new Set([...COURSE_TAGS, ...allTags()])].map(g => `<option value="${esc(g)}"></option>`).join("");
+  }
   function compDefaults() {
+    if (ui.view === "calendar") return { due: ui.calDay || today(), priority: 0, listId: "inbox", tags: [] };
+    if (ui.view === "matrix") return { due: "", priority: 0, listId: "inbox", tags: [] };
     const d = navDefaults(ui.nav);
     let listId = d.listId || "inbox";
     if (ui.nav.startsWith("group:")) { const first = all("lists").filter(l => l.group === ui.nav.slice(6)).sort((a, b) => (a.order || 0) - (b.order || 0))[0]; if (first) listId = first.id; }
@@ -968,10 +1084,6 @@ dialog h2 { margin: 0; font-size: 17px; }
     }
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); compSubmit(); }
   });
-  $("#cal-qa-form").addEventListener("submit", e => {
-    e.preventDefault(); const v = $("#cal-qa").value; if (!v.trim()) return;
-    if (createTask(v, { due: ui.calDay })) $("#cal-qa").value = "";
-  });
   $$("[data-qa-prio]").forEach(f => f.addEventListener("submit", e => {
     e.preventDefault(); const inp = f.querySelector("input"); if (!inp.value.trim()) return;
     if (createTask(inp.value, { priority: +f.dataset.qaPrio })) inp.value = "";
@@ -981,12 +1093,57 @@ dialog h2 { margin: 0; font-size: 17px; }
   $("#cal-today").addEventListener("click", () => { ui.calMonth = today().slice(0, 7); ui.calDay = today(); render({ skipDetail: true }); });
   function shiftMonth(n) { const [Y, M] = ui.calMonth.split("-").map(Number); ui.calMonth = ymd(new Date(Y, M - 1 + n, 1)).slice(0, 7); render({ skipDetail: true }); }
 
+  // search
+  $("#search-ic").innerHTML = ic("search", 15);
+  $("#search").addEventListener("input", e => { ui.q = e.target.value; render({ skipDetail: true }); });
+  $("#search").addEventListener("keydown", e => { if (e.key === "Escape") { e.target.value = ""; ui.q = ""; render({ skipDetail: true }); } });
+
   // matrix drag
-  let dragId = null;
-  document.addEventListener("dragstart", e => { const t = e.target.closest?.(".task[draggable]"); if (t) { dragId = t.dataset.task; e.dataTransfer.effectAllowed = "move"; } });
-  document.addEventListener("dragover", e => { const q = e.target.closest?.(".quad"); if (q && dragId) { e.preventDefault(); $$(".quad").forEach(x => x.classList.toggle("drag-over", x === q)); } });
-  document.addEventListener("drop", e => { const q = e.target.closest?.(".quad"); $$(".quad").forEach(x => x.classList.remove("drag-over")); if (q && dragId) { e.preventDefault(); patchTask(dragId, { priority: +q.dataset.quad }); } dragId = null; });
-  document.addEventListener("dragend", () => { $$(".quad").forEach(x => x.classList.remove("drag-over")); dragId = null; });
+  let dragId = null, dragGk = null, dragSub = null;
+  const clearMarks = () => $$(".drop-before, .drop-after, .quad.drag-over").forEach(x => x.classList.remove("drop-before", "drop-after", "drag-over"));
+  const below = (el, e) => { const r = el.getBoundingClientRect(); return e.clientY > r.top + r.height / 2; };
+  document.addEventListener("dragstart", e => {
+    const g = e.target.closest?.("[data-sub-grip]");
+    if (g) { dragSub = g.dataset.subGrip; e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", ""); } catch {} return; }
+    const t = e.target.closest?.(".task[draggable]");
+    if (t) { dragId = t.dataset.task; dragGk = t.dataset.gk || null; e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", ""); } catch {} }
+  });
+  document.addEventListener("dragover", e => {
+    if (dragSub) { const r = e.target.closest?.("[data-sub-row]"); if (r && r.dataset.subRow !== dragSub) { e.preventDefault(); clearMarks(); r.classList.add(below(r, e) ? "drop-after" : "drop-before"); } return; }
+    if (!dragId) return;
+    const q = e.target.closest?.(".quad");
+    if (q) { e.preventDefault(); clearMarks(); q.classList.add("drag-over"); return; }
+    const r = e.target.closest?.(".task[data-gk]");
+    if (r && dragGk && r.dataset.gk === dragGk && r.dataset.task !== dragId) { e.preventDefault(); clearMarks(); r.classList.add(below(r, e) ? "drop-after" : "drop-before"); }
+  });
+  document.addEventListener("drop", e => {
+    if (dragSub) {
+      const r = e.target.closest?.("[data-sub-row]"), t = getT(ui.sel);
+      if (r && t && r.dataset.subRow !== dragSub) {
+        e.preventDefault();
+        const subs = [...(t.subtasks || [])], from = subs.findIndex(x => x.id === dragSub), item = subs.splice(from, 1)[0];
+        let to = subs.findIndex(x => x.id === r.dataset.subRow); if (below(r, e)) to++;
+        subs.splice(to, 0, item); patchTask(t.id, { subtasks: subs }); renderDetail(true);
+      }
+    } else if (dragId) {
+      const q = e.target.closest?.(".quad");
+      if (q) { e.preventDefault(); patchTask(dragId, { priority: +q.dataset.quad }); }
+      else {
+        const r = e.target.closest?.(".task[data-gk]");
+        if (r && r.dataset.gk === dragGk && r.dataset.task !== dragId) {
+          e.preventDefault();
+          const ids = $$(`.task[data-gk="${CSS.escape(dragGk)}"]`).map(x => x.dataset.task).filter(id => id !== dragId);
+          let to = ids.indexOf(r.dataset.task); if (below(r, e)) to++;
+          ids.splice(to, 0, dragId);
+          ids.forEach((id, i) => { const t = getT(id); if (t && t.order !== i) patchTask(id, { order: i }); });
+          const a = getT(dragId), b = getT(r.dataset.task);
+          if (a && b && (a.due !== b.due || a.time !== b.time)) toast("Tasks are sorted by date first, so only tasks on the same date change order.");
+        }
+      }
+    }
+    clearMarks(); dragId = dragSub = dragGk = null;
+  });
+  document.addEventListener("dragend", () => { clearMarks(); dragId = dragSub = dragGk = null; });
 
   // detail editing
   const det = $("#detail");
@@ -1012,17 +1169,14 @@ dialog h2 { margin: 0; font-size: 17px; }
     renderDetail(true);
   });
   det.addEventListener("click", e => {
-    const t = S.tasks[ui.sel]; if (!t) return;
+    const t = getT(ui.sel); if (!t) return;
     if (e.target.closest("[data-subfold]")) { ui.showSubDone = !ui.showSubDone; renderDetail(true); return; }
     const p = e.target.closest("[data-prio]"); if (p) { patchTask(t.id, { priority: +p.dataset.prio }); renderDetail(true); return; }
     const sc = e.target.closest("[data-sub-check]"); if (sc) { patchTask(t.id, { subtasks: (t.subtasks || []).map(s => s.id === sc.dataset.subCheck ? { ...s, done: !s.done } : s) }); renderDetail(true); return; }
     const sx = e.target.closest("[data-sub-del]"); if (sx) { patchTask(t.id, { subtasks: (t.subtasks || []).filter(s => s.id !== sx.dataset.subDel) }); renderDetail(true); return; }
     const tx = e.target.closest("[data-tag-del]"); if (tx) { patchTask(t.id, { tags: (t.tags || []).filter(g => g !== tx.dataset.tagDel) }); renderDetail(true); return; }
     const del = e.target.closest("#d-del");
-    if (del) {
-      if (del.classList.contains("armed")) { const id = t.id; clearTimeout(pendT[id]); delete pend[id]; ui.sel = null; remove("tasks", id); toast("Task deleted"); }
-      else { del.classList.add("armed"); del.innerHTML = ic("trash", 15) + "Confirm delete"; setTimeout(() => { if (del.isConnected) { del.classList.remove("armed"); del.innerHTML = ic("trash", 15) + "Delete"; } }, 3000); }
-    }
+    if (del) softDelete(t.id);
   });
   det.addEventListener("keydown", e => {
     const t = S.tasks[ui.sel]; if (!t || e.key !== "Enter" || e.isComposing) return;
@@ -1055,6 +1209,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     $("#list-dlg-title").textContent = editList ? "Edit list" : "New list";
     $("#l-name").value = editList?.name || "";
     $("#l-group").value = editList ? editList.group || "" : (ui.nav.startsWith("group:") ? ui.nav.slice(6) : "");
+    $("#l-url").value = editList?.url || "";
     $("#l-week").value = editList ? editList.weekStart || "" : (ui.nav.startsWith("group:") ? weekStartFor(ui.nav) || "" : "");
     $("#group-opts").innerHTML = [...new Set(all("lists").map(l => l.group).filter(Boolean))].map(g => `<option value="${esc(g)}"></option>`).join("");
     listColor = editList?.color || COLORS[all("lists").length % COLORS.length];
@@ -1064,7 +1219,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   }
   $("#list-form").addEventListener("submit", e => {
     e.preventDefault(); const name = $("#l-name").value.trim(); if (!name) return;
-    const extra = { group: $("#l-group").value.trim(), weekStart: $("#l-week").value || null };
+    const extra = { group: $("#l-group").value.trim(), weekStart: $("#l-week").value || null, url: /^https?:\/\//.test($("#l-url").value.trim()) ? $("#l-url").value.trim() : "" };
     const l = editList ? { ...editList, name, color: listColor, ...extra } : { id: uid(), name, color: listColor, created: Date.now(), order: all("lists").length, ...extra };
     save("lists", l); $("#list-dlg").close();
     if (!editList) { ui.nav = "list:" + l.id; ui.view = "tasks"; saveUI(); render(); }
@@ -1086,8 +1241,36 @@ dialog h2 { margin: 0; font-size: 17px; }
   function toast(msg, act, fn) {
     $("#toast-msg").textContent = msg;
     const b = $("#toast-act"); b.hidden = !act; b.textContent = act || ""; b.onclick = () => { $("#toast").hidden = true; fn && fn(); };
-    $("#toast").hidden = false; clearTimeout(toastT); toastT = setTimeout(() => $("#toast").hidden = true, 3200);
+    $("#toast").hidden = false; clearTimeout(toastT); toastT = setTimeout(() => $("#toast").hidden = true, act ? 8000 : 3200);
   }
+
+  // in-page reminders (only while the page is open)
+  const LS_REM = "tick-remind-v1";
+  const remState = () => { const r = lsGet(LS_REM) || {}; const d = today(); return r.day === d ? r : { day: d, seen: [] }; };
+  let remActive = [], audioCtx = null;
+  document.addEventListener("pointerdown", () => { try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); } catch {} }, { once: true });
+  function chime() {
+    try {
+      if (!audioCtx) return;
+      [0, .2].forEach((t, i) => { const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.frequency.value = [880, 1175][i]; g.gain.setValueAtTime(.12, audioCtx.currentTime + t); g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + t + .35); o.connect(g).connect(audioCtx.destination); o.start(audioCtx.currentTime + t); o.stop(audioCtx.currentTime + t + .36); });
+    } catch {}
+  }
+  function renderRemind() {
+    $("#remind").innerHTML = remActive.map(id => { const t = getT(id); if (!t) return ""; return `<div class="remind" role="alert"><b>${esc(t.title)}</b><small>${esc(fmtDue(t))}${S.lists[t.listId] ? " · " + esc(S.lists[t.listId].name) : ""}</small><div class="acts"><button class="btn sm" data-remind-x="${t.id}">Dismiss</button><button class="btn sm primary" data-remind-open="${t.id}">Open</button></div></div>`; }).join("");
+  }
+  function dismissRemind(id) { remActive = remActive.filter(x => x !== id); renderRemind(); }
+  function checkRemind() {
+    if (!loaded) return;
+    const st = remState(), now = new Date(), t0 = today(); let fresh = false;
+    for (const t of all("tasks")) {
+      if (t.done || t.due !== t0 || !t.time) continue;
+      const [h, m] = t.time.split(":").map(Number), at = new Date(); at.setHours(h, m, 0, 0);
+      const mins = (at - now) / 6e4, key = t.id + "@" + t.due + "T" + t.time;
+      if (mins <= 10 && mins > -60 && !st.seen.includes(key)) { st.seen.push(key); if (!remActive.includes(t.id)) remActive.push(t.id); fresh = true; }
+    }
+    if (fresh) { lsSet(LS_REM, st); renderRemind(); chime(); }
+  }
+  setInterval(checkRemind, 30000); setTimeout(checkRemind, 3000);
 
   $$(".menu-btn").forEach(b => b.innerHTML = ic("menu", 20));
   compReset(false); render(); initStore();
