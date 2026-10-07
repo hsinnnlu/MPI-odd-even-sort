@@ -102,6 +102,9 @@ button { cursor: pointer; }
 .group-h .n { font-weight: 500; font-family: var(--f-mono); }
 .group-h.late { color: var(--late); }
 .group-h.now { color: var(--accent); }
+.today-progress { display: grid; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.today-progress .prog { height: 6px; border-radius: 3px; }
+.today-progress b { color: var(--fg); font-family: var(--f-mono); }
 .group-h.behind { color: var(--p2); }
 .btn.sm { padding: 4px 10px; font-size: 12.5px; }
 .d-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -4px; }
@@ -305,6 +308,7 @@ dialog h2 { margin: 0; font-size: 17px; }
 <div class="app" id="app">
   <nav class="rail" aria-label="Main">
     <div class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4 4 10-10"/></svg></div>
+    <button class="rail-btn" data-go="today" id="go-today"></button>
     <button class="rail-btn" data-go="tasks" id="go-tasks"></button>
     <button class="rail-btn" data-go="calendar" id="go-calendar"></button>
     <button class="rail-btn" data-go="matrix" id="go-matrix"></button>
@@ -343,6 +347,14 @@ dialog h2 { margin: 0; font-size: 17px; }
       </div>
       <datalist id="tag-opts"></datalist>
       <div id="task-list"></div>
+    </section>
+
+    <!-- Today -->
+    <section class="view" id="view-today" hidden>
+      <div class="vh"><button class="icon-btn menu-btn" data-open-side aria-label="Open lists"></button><h1>Today</h1><span class="muted" id="today-date"></span></div>
+      <div class="today-progress" id="today-progress"></div>
+      <div class="composer-slot"></div>
+      <div id="today-list"></div>
     </section>
 
     <!-- Calendar -->
@@ -533,10 +545,10 @@ dialog h2 { margin: 0; font-size: 17px; }
   }
 
   // ---------- UI state ----------
-  const ui = Object.assign({ view: "tasks", nav: "today", showDone: true, calMonth: null, calDay: null }, lsGet(LS_UI) || {});
+  const ui = Object.assign({ view: "today", nav: "today", showDone: true, calMonth: null, calDay: null }, lsGet(LS_UI) || {});
   ui.sel = null;
-  if (["tasks", "calendar", "matrix"].includes(location.hash.slice(1))) ui.view = location.hash.slice(1);
-  if (!["tasks", "calendar", "matrix"].includes(ui.view)) ui.view = "tasks";
+  if (["today", "tasks", "calendar", "matrix"].includes(location.hash.slice(1))) ui.view = location.hash.slice(1);
+  if (!["today", "tasks", "calendar", "matrix"].includes(ui.view)) ui.view = "tasks";
   const saveUI = () => lsSet(LS_UI, { view: ui.view, nav: ui.nav, showDone: ui.showDone });
 
   // ---------- quick add parsing ----------
@@ -682,11 +694,12 @@ dialog h2 { margin: 0; font-size: 17px; }
     $("#side").classList.toggle("hidden-wide", ui.view !== "tasks");
     renderSide();
     if (ui.view === "tasks") renderTasks();
+    if (ui.view === "today") renderToday();
     if (ui.view === "calendar") renderCalendar();
     if (ui.view === "matrix") renderMatrix();
     placeComposer();
     if (!opts.skipDetail) renderDetail();
-    const hasDetail = ["tasks", "calendar", "matrix"].includes(ui.view);
+    const hasDetail = ["today", "tasks", "calendar", "matrix"].includes(ui.view);
     $("#detail").hidden = !hasDetail;
     $("#app").classList.toggle("detail-open", hasDetail && !!getT(ui.sel));
     $("#scrim").hidden = !$("#app").classList.contains("side-open");
@@ -695,7 +708,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   let remT = null;
 
   function renderRail() {
-    const items = { tasks: "Tasks", calendar: "Calendar", matrix: "Matrix" };
+    const items = { today: "Today", tasks: "Tasks", calendar: "Calendar", matrix: "Matrix" };
     for (const k in items) {
       const b = $("#go-" + k);
       b.innerHTML = ic(k, 21) + `<span>${items[k]}</span>`;
@@ -859,6 +872,29 @@ dialog h2 { margin: 0; font-size: 17px; }
   }
   function autoGrow(ta) { if (!ta) return; ta.style.height = "auto"; ta.style.height = Math.max(70, ta.scrollHeight) + "px"; }
 
+  // ---------- today page ----------
+  function renderToday() {
+    const t0 = today(), soonEnd = addDays(t0, 3), d = parseD(t0);
+    $("#today-date").textContent = `${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
+    const doneToday = t => t.done && t.doneAt && ymd(new Date(t.doneAt)) === t0;
+    const ts = all("tasks").filter(t => (!t.done && t.due && t.due <= soonEnd) || doneToday(t));
+    const sec = { overdue: [], timed: [], anytime: [], soon: [] };
+    ts.forEach(t => {
+      if (!t.due) sec.anytime.push(t);
+      else if (t.due < t0) sec.overdue.push(t);
+      else if (t.due === t0) (t.time ? sec.timed : sec.anytime).push(t);
+      else sec.soon.push(t);
+    });
+    for (const k in sec) sec[k].sort(sortTasks);
+    const mine = [...sec.overdue, ...sec.timed, ...sec.anytime], dn = mine.filter(t => t.done).length;
+    $("#today-progress").innerHTML = mine.length
+      ? `<div class="prog"><i style="width:${Math.round(dn / mine.length * 100)}%"></i></div><span><b>${dn}</b> of <b>${mine.length}</b> done today${sec.overdue.filter(t => !t.done).length ? ` · ${sec.overdue.filter(t => !t.done).length} overdue` : ""}</span>`
+      : "";
+    const block = (k, title, cls = "") => sec[k].length ? `<div class="group"><div class="group-h ${cls}">${title} <span class="n">${sec[k].length}</span></div>${sec[k].map(t => taskRow(t, { showList: true, hideDate: k === "timed" || k === "anytime" })).join("")}</div>` : "";
+    const html = block("overdue", "Overdue", "late") + block("timed", "Scheduled") + block("anytime", "Anytime today") + block("soon", "Coming up · next 3 days");
+    $("#today-list").innerHTML = html || emptyBox("today", "Nothing due today. Add a task above, or enjoy the free time.");
+  }
+
   // ---------- calendar ----------
   function renderCalendar() {
     const t0 = today();
@@ -1003,6 +1039,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   }
   function compDefaults() {
     if (ui.view === "calendar") return { due: ui.calDay || today(), priority: 0, listId: "inbox", tags: [] };
+    if (ui.view === "today") return { due: today(), priority: 0, listId: "inbox", tags: [] };
     if (ui.view === "matrix") return { due: "", priority: 0, listId: "inbox", tags: [] };
     const d = navDefaults(ui.nav);
     let listId = d.listId || "inbox";
