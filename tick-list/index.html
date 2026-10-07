@@ -361,7 +361,7 @@ dialog h2 { margin: 0; font-size: 17px; }
 
     <!-- Matrix -->
     <section class="view" id="view-matrix" hidden>
-      <div class="vh"><h1>Eisenhower Matrix</h1><span class="muted" style="font-size:12.5px">Sorted by priority. Drag a task to another quadrant. Important tasks move to Urgent 3 days before they're due.</span></div>
+      <div class="vh"><h1>Eisenhower Matrix</h1><span class="muted" style="font-size:12.5px">Sorted by priority. Drag a task to another quadrant. Important tasks move to Urgent 3 days before they're due, and back once the due time has passed.</span></div>
       <div class="composer-slot"></div>
       <div class="matrix" id="matrix">
         <div class="quad" data-quad="3" style="--qc:var(--p3)"><div class="quad-h">Urgent &amp; important<small data-qcount="3"></small></div><div class="qlist" data-qlist="3"></div><form class="qa" data-qa-prio="3" autocomplete="off"><input id="qa-q3" type="text" placeholder="+ Add" aria-label="Add to urgent and important"></form></div>
@@ -474,7 +474,8 @@ dialog h2 { margin: 0; font-size: 17px; }
   const URL_RE = /https?:\/\/[^\s<>"')]+/g;
   const urlsIn = s => [...new Set(String(s || "").match(URL_RE) || [])];
   function shortUrl(u) { try { const x = new URL(u); const p = (x.hostname.replace(/^www\./, "") + x.pathname).replace(/\/$/, ""); return p.length > 42 ? p.slice(0, 40) + "…" : p; } catch { return u.slice(0, 40); } }
-  const effPri = t => (!t.done && (t.priority || 0) === 2 && t.due && diffDays(t.due, today()) <= 3) ? 3 : (t.priority || 0);
+  const isPast = t => { if (!t.due) return false; const d = diffDays(t.due, today()); if (d < 0) return true; if (d > 0 || !t.time) return false; const n = new Date(); return t.time < `${pad(n.getHours())}:${pad(n.getMinutes())}`; };
+  const effPri = t => (!t.done && (t.priority || 0) === 2 && t.due && diffDays(t.due, today()) <= 3 && !isPast(t)) ? 3 : (t.priority || 0);
   const escalated = t => effPri(t) !== (t.priority || 0);
   const pend = {}, pendT = {};
 
