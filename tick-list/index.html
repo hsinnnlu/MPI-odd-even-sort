@@ -113,6 +113,8 @@ button { cursor: pointer; }
 .search input { border: 1px solid var(--line); border-radius: 999px; background: var(--surface); padding: 6px 12px 6px 32px; width: 200px; max-width: 100%; color: var(--fg); }
 .search .ic { position: absolute; left: 10px; top: 8px; color: var(--muted); }
 .vh { flex-wrap: wrap; }
+.vh h1 { min-width: min(100%, 9em); }
+.vh-sub { margin: -6px 0 0; color: var(--muted); font-size: 12.5px; max-width: 70ch; }
 .task.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
 .task.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
 .sub.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
@@ -361,7 +363,8 @@ dialog h2 { margin: 0; font-size: 17px; }
 
     <!-- Matrix -->
     <section class="view" id="view-matrix" hidden>
-      <div class="vh"><h1>Eisenhower Matrix</h1><span class="muted" style="font-size:12.5px">Sorted by priority. Drag a task to another quadrant. Important tasks move to Urgent 3 days before they're due, and back once the due time has passed.</span></div>
+      <div class="vh"><h1>Eisenhower Matrix</h1></div>
+      <p class="vh-sub">Sorted by priority. Drag a task to another quadrant. Important tasks move to Urgent 3 days before they're due, and back once the due time has passed.</p>
       <div class="composer-slot"></div>
       <div class="matrix" id="matrix">
         <div class="quad" data-quad="3" style="--qc:var(--p3)"><div class="quad-h">Urgent &amp; important<small data-qcount="3"></small></div><div class="qlist" data-qlist="3"></div><form class="qa" data-qa-prio="3" autocomplete="off"><input id="qa-q3" type="text" placeholder="+ Add" aria-label="Add to urgent and important"></form></div>
