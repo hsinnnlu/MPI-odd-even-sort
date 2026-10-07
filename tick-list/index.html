@@ -102,6 +102,8 @@ button { cursor: pointer; }
 .group-h .n { font-weight: 500; font-family: var(--f-mono); }
 .group-h.late { color: var(--late); }
 .group-h.now { color: var(--accent); }
+.composer.daily .ctl-due, .composer.daily .ctl-list, .composer.daily .ctl-repeat { display: none; }
+.carry { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); background: var(--hover); border-radius: 10px; padding: 8px 12px; }
 .today-progress { display: grid; gap: 6px; font-size: 12.5px; color: var(--muted); }
 .today-progress .prog { height: 6px; border-radius: 3px; }
 .today-progress b { color: var(--fg); font-family: var(--f-mono); }
@@ -333,11 +335,11 @@ dialog h2 { margin: 0; font-size: 17px; }
         </form>
         <div class="comp-body" id="comp-body" hidden>
           <div class="comp-row">
-            <label class="ctl"><span>DATE</span><input type="date" id="c-due"></label>
+            <label class="ctl ctl-due"><span>DATE</span><input type="date" id="c-due"></label>
             <label class="ctl"><span>TIME</span><input type="time" id="c-time"></label>
             <div class="ctl"><span>PRIORITY</span><div class="prio-pick" id="c-prio" role="group" aria-label="Priority"></div></div>
-            <label class="ctl"><span>LIST</span><select id="c-list"></select></label>
-            <label class="ctl"><span>REPEAT</span><select id="c-repeat"></select></label>
+            <label class="ctl ctl-list"><span>LIST</span><select id="c-list"></select></label>
+            <label class="ctl ctl-repeat"><span>REPEAT</span><select id="c-repeat"></select></label>
           </div>
           <div class="ctl"><span>TAGS</span><div class="tags-edit" id="c-tags"></div></div>
           <textarea id="c-notes" class="input" rows="2" placeholder="Notes (optional)" aria-label="Notes"></textarea>
@@ -485,7 +487,8 @@ dialog h2 { margin: 0; font-size: 17px; }
   const S = { lists: {}, tasks: {} };
   const COLLS = Object.keys(S);
   let db = null, loaded = false, syncNote = "";
-  const all = c => Object.values(S[c]).filter(x => !x.deleted);
+  const all = c => Object.values(S[c]).filter(x => !x.deleted && !(c === "tasks" && x.daily));
+  const dailyAll = () => Object.values(S.tasks).filter(t => t.daily && !t.deleted);
   const dotColor = l => l.group ? "var(--p0)" : l.color;
   const getT = id => { const t = S.tasks[id]; return t && !t.deleted ? t : null; };
   const trashed = () => Object.values(S.tasks).filter(t => t.deleted).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
@@ -874,25 +877,16 @@ dialog h2 { margin: 0; font-size: 17px; }
 
   // ---------- today page ----------
   function renderToday() {
-    const t0 = today(), soonEnd = addDays(t0, 3), d = parseD(t0);
+    const t0 = today(), d = parseD(t0);
     $("#today-date").textContent = `${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
-    const doneToday = t => t.done && t.doneAt && ymd(new Date(t.doneAt)) === t0;
-    const ts = all("tasks").filter(t => (!t.done && t.due && t.due <= soonEnd) || doneToday(t));
-    const sec = { overdue: [], timed: [], anytime: [], soon: [] };
-    ts.forEach(t => {
-      if (!t.due) sec.anytime.push(t);
-      else if (t.due < t0) sec.overdue.push(t);
-      else if (t.due === t0) (t.time ? sec.timed : sec.anytime).push(t);
-      else sec.soon.push(t);
-    });
-    for (const k in sec) sec[k].sort(sortTasks);
-    const mine = [...sec.overdue, ...sec.timed, ...sec.anytime], dn = mine.filter(t => t.done).length;
-    $("#today-progress").innerHTML = mine.length
-      ? `<div class="prog"><i style="width:${Math.round(dn / mine.length * 100)}%"></i></div><span><b>${dn}</b> of <b>${mine.length}</b> done today${sec.overdue.filter(t => !t.done).length ? ` · ${sec.overdue.filter(t => !t.done).length} overdue` : ""}</span>`
-      : "";
-    const block = (k, title, cls = "") => sec[k].length ? `<div class="group"><div class="group-h ${cls}">${title} <span class="n">${sec[k].length}</span></div>${sec[k].map(t => taskRow(t, { showList: true, hideDate: k === "timed" || k === "anytime" })).join("")}</div>` : "";
-    const html = block("overdue", "Overdue", "late") + block("timed", "Scheduled") + block("anytime", "Anytime today") + block("soon", "Coming up · next 3 days");
-    $("#today-list").innerHTML = html || emptyBox("today", "Nothing due today. Add a task above, or enjoy the free time.");
+    const items = dailyAll().filter(t => t.daily === t0).sort((a, b) => (a.order ?? 1e9) - (b.order ?? 1e9) || (a.created || 0) - (b.created || 0));
+    const carry = dailyAll().filter(t => !t.done && t.daily < t0);
+    const dn = items.filter(t => t.done).length;
+    $("#today-progress").innerHTML = items.length ? `<div class="prog"><i style="width:${Math.round(dn / items.length * 100)}%"></i></div><span><b>${dn}</b> of <b>${items.length}</b> done</span>` : "";
+    $("#today-list").innerHTML =
+      (carry.length ? `<div class="carry"><span>${plural(carry.length, "unfinished item")} from earlier days</span><button class="btn sm" id="carry-over">Move to today</button></div>` : "") +
+      (items.length ? `<div class="group">${items.map(t => taskRow(t, { drag: true, gk: "daily|" + t0 })).join("")}</div>`
+        : emptyBox("today", loaded ? "Today's list is empty. Add what you want to get done today. Items here have no date, so they stay off the calendar." : ""));
   }
 
   // ---------- calendar ----------
@@ -1002,6 +996,7 @@ dialog h2 { margin: 0; font-size: 17px; }
       else { et.classList.add("armed"); et.textContent = `Delete ${plural(trashed().length, "task")} for good?`; setTimeout(() => { if (et.isConnected) { et.classList.remove("armed"); et.textContent = "Empty trash"; } }, 3500); }
       return;
     }
+    if (tgt.closest("#carry-over")) { const t0 = today(); dailyAll().filter(t => !t.done && t.daily < t0).forEach(t => patchTask(t.id, { daily: t0 })); return; }
     const ra = tgt.closest("[data-remind-open]"); if (ra) { dismissRemind(ra.dataset.remindOpen); ui.view = "tasks"; select(ra.dataset.remindOpen); return; }
     const rd = tgt.closest("[data-remind-x]"); if (rd) { dismissRemind(rd.dataset.remindX); return; }
     const task = tgt.closest("[data-task]");
@@ -1030,6 +1025,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     const slot = $(`#view-${ui.view} .composer-slot`), el = $("#composer");
     if (slot && el.parentNode !== slot) slot.appendChild(el);
     el.hidden = ui.view === "tasks" && (ui.nav === "done" || ui.nav === "trash" || !!(ui.q || "").trim());
+    el.classList.toggle("daily", ui.view === "today");
     qa.placeholder = ui.view === "calendar" ? `Add a task to ${fmtMD(ui.calDay || today())}` : "Add a task, e.g. HW2 next fri 11:59pm #homework !high";
     const key = ui.view + "|" + (ui.view === "tasks" ? ui.nav : ui.view === "calendar" ? ui.calDay : "");
     if (key !== lastCompKey) { lastCompKey = key; if (comp.open && qa.value.trim()) { comp.touched.due = false; compSync(); } else compReset(false); }
@@ -1039,7 +1035,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   }
   function compDefaults() {
     if (ui.view === "calendar") return { due: ui.calDay || today(), priority: 0, listId: "inbox", tags: [] };
-    if (ui.view === "today") return { due: today(), priority: 0, listId: "inbox", tags: [] };
+    if (ui.view === "today") return { due: "", priority: 0, listId: "inbox", tags: [] };
     if (ui.view === "matrix") return { due: "", priority: 0, listId: "inbox", tags: [] };
     const d = navDefaults(ui.nav);
     let listId = d.listId || "inbox";
@@ -1094,9 +1090,11 @@ dialog h2 { margin: 0; font-size: 17px; }
     const p = parseQuick(qa.value);
     if (!p.title) { toast("Type a name for the task."); qa.focus(); return; }
     let due = $("#c-due").value || null; const time = $("#c-time").value || null, repeat = $("#c-repeat").value;
-    if ((time || repeat) && !due) due = today();
+    const daily = ui.view === "today";
+    if (daily) due = null; else if ((time || repeat) && !due) due = today();
     const t = { id: uid(), title: p.title, notes: $("#c-notes").value.trim(), listId: $("#c-list").value || "inbox", due, time,
-      priority: comp.priority, tags: compTags(), subtasks: [], repeat, done: false, doneAt: null, created: Date.now() };
+      priority: comp.priority, tags: compTags(), subtasks: [], repeat: daily ? "" : repeat, done: false, doneAt: null, created: Date.now() };
+    if (daily) { t.daily = today(); t.listId = "inbox"; t.order = dailyAll().filter(x => x.daily === t.daily).length; }
     save("tasks", t);
     toast(`Added “${t.title}”${t.due ? ", " + fmtDue(t) : ""}`);
     compReset(true); qa.focus();
@@ -1305,8 +1303,8 @@ dialog h2 { margin: 0; font-size: 17px; }
   function checkRemind() {
     if (!loaded) return;
     const st = remState(), now = new Date(), t0 = today(); let fresh = false;
-    for (const t of all("tasks")) {
-      if (t.done || t.due !== t0 || !t.time) continue;
+    for (const t of Object.values(S.tasks)) {
+      if (t.deleted || t.done || !t.time || (t.due !== t0 && t.daily !== t0)) continue;
       const [h, m] = t.time.split(":").map(Number), at = new Date(); at.setHours(h, m, 0, 0);
       const mins = (at - now) / 6e4, key = t.id + "@" + t.due + "T" + t.time;
       if (mins <= 10 && mins > -60 && !st.seen.includes(key)) { st.seen.push(key); if (!remActive.includes(t.id)) remActive.push(t.id); fresh = true; }
