@@ -1,8 +1,8 @@
-<title>Tally</title>
+<title>小吉罐頭的賺錢日記</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+TC:wght@500;700;900&display=swap">
 <style>
 /* Layout: four columns like a desktop task app (nav rail · lists · tasks · detail); on phones the rail becomes a bottom bar, lists slide in as a drawer, detail opens as a sheet. */
 :root {
@@ -101,6 +101,17 @@ button { cursor: pointer; }
 .group-h { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--muted); padding: 10px 6px 4px; border: 0; background: none; text-align: left; }
 .group-h .n { font-weight: 500; font-family: var(--f-mono); }
 .group-h.late { color: var(--late); }
+.group-h.now { color: var(--accent); }
+.group-h .range { font-weight: 500; }
+.group-h .pill { margin-left: auto; font-weight: 600; font-size: 11.5px; padding: 1px 8px; border-radius: 999px; background: var(--hover); color: var(--muted); font-family: var(--f-mono); }
+.group-h.now .pill { background: var(--accent-soft); color: var(--accent); }
+.group-h .now-tag { background: var(--accent); color: var(--on-accent); border-radius: 999px; padding: 0 8px; font-size: 11px; }
+.group.past .task-title { opacity: .85; }
+.brand { padding: 4px 8px 14px; font-family: "Noto Sans TC", var(--f-ui); font-weight: 900; font-size: 17px; letter-spacing: .02em; line-height: 1.3; color: var(--fg); display: flex; align-items: center; gap: 8px; }
+.brand i { width: 8px; height: 8px; border-radius: 50%; background: var(--p2); flex: none; }
+.side-link { border: 0; background: none; padding: 0; color: inherit; font: inherit; letter-spacing: inherit; display: flex; gap: 6px; align-items: center; }
+.side-link:hover { color: var(--fg); }
+.side-link.active { color: var(--accent); }
 .task { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 8px 10px; border-radius: 8px; cursor: pointer; border-bottom: 1px solid transparent; }
 .task:hover { background: var(--hover); }
 .task.sel { background: var(--sel); }
@@ -385,6 +396,8 @@ dialog h2 { margin: 0; font-size: 17px; }
     <h2 id="list-dlg-title">New list</h2>
     <div class="field"><label for="l-name">Name</label><input class="input" id="l-name" type="text" required maxlength="40"></div>
     <div class="field"><label>Color</label><div class="colors" id="l-colors"></div></div>
+    <div class="field"><label for="l-group">Section (optional)</label><input class="input" id="l-group" type="text" list="group-opts" maxlength="40" placeholder="e.g. 2026 Fall"><datalist id="group-opts"></datalist></div>
+    <div class="field"><label for="l-week">Week 1 starts on (optional)</label><input class="input" id="l-week" type="date"><span class="muted" style="font-size:12px">Set this to group the list's tasks by week, like a course syllabus.</span></div>
     <div class="dlg-actions"><button type="button" class="btn danger" id="l-del">Delete list</button><div class="r"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary" type="submit">Save</button></div></div>
   </form>
 </dialog>
@@ -539,7 +552,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   const SHORTDAY = "(sun|mon|tues?|wed|thu(?:rs?)?|fri|sat)";
   function mdNext(M, D) {
     const y = new Date().getFullYear(); let s = ymd(new Date(y, M - 1, D));
-    if (s < today()) s = ymd(new Date(y + 1, M - 1, D)); return s;
+    if (diffDays(s, today()) < -60) s = ymd(new Date(y + 1, M - 1, D)); return s;
   }
   function upcoming(dow, next) {
     const t0 = today(), cur = new Date().getDay();
@@ -613,6 +626,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     if (key === "done") return { name: "Completed" };
     if (key.startsWith("list:")) { const l = S.lists[key.slice(5)]; return l ? { name: l.name, color: l.color } : null; }
     if (key.startsWith("tag:")) return { name: "#" + key.slice(4) };
+    if (key.startsWith("group:")) { const g = key.slice(6); return all("lists").some(l => l.group === g) ? { name: g } : null; }
     return null;
   }
   function basePred(key) {
@@ -624,6 +638,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     if (key === "all" || key === "done") return () => true;
     if (key.startsWith("list:")) { const id = key.slice(5); return t => t.listId === id; }
     if (key.startsWith("tag:")) { const g = key.slice(4); return t => (t.tags || []).includes(g); }
+    if (key.startsWith("group:")) { const ids = new Set(all("lists").filter(l => l.group === key.slice(6)).map(l => l.id)); return t => ids.has(t.listId); }
     return () => false;
   }
   function navDefaults(key) {
@@ -633,6 +648,11 @@ dialog h2 { margin: 0; font-size: 17px; }
     if (key.startsWith("list:")) return { listId: key.slice(5) };
     if (key.startsWith("tag:")) return { tags: [key.slice(4)] };
     return {};
+  }
+  function weekStartFor(key) {
+    if (key.startsWith("list:")) return S.lists[key.slice(5)]?.weekStart || null;
+    if (key.startsWith("group:")) return all("lists").filter(l => l.group === key.slice(6) && l.weekStart).map(l => l.weekStart).sort()[0] || null;
+    return null;
   }
   const sortTasks = (a, b) => (a.due || "9999").localeCompare(b.due || "9999") || (a.time || "99").localeCompare(b.time || "99") || (b.priority || 0) - (a.priority || 0) || (a.created || 0) - (b.created || 0);
   function groupOf(t) {
@@ -676,13 +696,18 @@ dialog h2 { margin: 0; font-size: 17px; }
     const row = (key, icon, name, extra = "") => `<div class="nav-row ${ui.nav === key && ui.view === "tasks" ? "active" : ""}">
       <button class="nav-item" data-nav="${esc(key)}">${icon}<span class="nm">${esc(name)}</span><span class="count">${cnt(key) || ""}</span></button>${extra}</div>`;
     const lists = all("lists").sort((a, b) => (a.order || 0) - (b.order || 0) || (a.created || 0) - (b.created || 0));
+    const plain = lists.filter(l => !l.group);
+    const groups = [...new Set(lists.filter(l => l.group).map(l => l.group))];
+    const listRow = l => row("list:" + l.id, `<span class="dot" style="background:${l.color}"></span>`, l.name, `<button class="row-edit" data-list-edit="${l.id}" aria-label="Edit list ${esc(l.name)}">${ic("edit", 14)}</button>`);
     const tags = [...new Set(all("tasks").flatMap(t => t.tags || []))].sort();
     const hasEx = COLLS.some(c => all(c).some(x => x.example));
     $("#side").innerHTML =
+      `<div class="brand"><i></i>小吉罐頭的賺錢日記</div>` +
       SMART.map(([k, n, i]) => row(k, ic(i), n)).join("") +
+      groups.map(g => `<div class="side-h"><button class="side-link ${ui.nav === "group:" + g && ui.view === "tasks" ? "active" : ""}" data-nav="group:${esc(g)}" title="Show all ${esc(g)} tasks by week">${esc(g.toUpperCase())}</button><span class="count num">${cnt("group:" + g) || ""}</span></div>` + lists.filter(l => l.group === g).map(listRow).join("")).join("") +
       `<div class="side-h"><span>LISTS</span><button class="icon-btn" id="add-list" aria-label="New list">${ic("plus", 16)}</button></div>` +
-      (lists.length ? lists.map(l => row("list:" + l.id, `<span class="dot" style="background:${l.color}"></span>`, l.name, `<button class="row-edit" data-list-edit="${l.id}" aria-label="Edit list ${esc(l.name)}">${ic("edit", 14)}</button>`)).join("")
-        : `<div class="muted" style="padding:4px 10px;font-size:12.5px">${loaded ? "Press + to create your first list" : "Loading…"}</div>`) +
+      (plain.length ? plain.map(listRow).join("")
+        : `<div class="muted" style="padding:4px 10px;font-size:12.5px">${loaded ? "Press + to create a list" : "Loading…"}</div>`) +
       (tags.length ? `<div class="side-h"><span>TAGS</span></div>` + tags.map(g => row("tag:" + g, ic("tag", 16), g)).join("") : "") +
       `<div style="height:8px"></div><div class="nav-row ${ui.nav === "done" && ui.view === "tasks" ? "active" : ""}"><button class="nav-item" data-nav="done">${ic("done")}<span class="nm">Completed</span></button></div>` +
       (hasEx ? `<div class="example-note"><span>You're looking at sample data. Edit it freely, or clear it all at once.</span><button id="clear-ex">Clear sample data</button></div>` : "") +
@@ -718,8 +743,10 @@ dialog h2 { margin: 0; font-size: 17px; }
     $("#qa-hint").hidden = ui.nav === "done";
     const pred = basePred(ui.nav);
     const showList = !ui.nav.startsWith("list:");
+    const ws = weekStartFor(ui.nav);
     let html = "";
-    if (ui.nav === "done") {
+    if (ws) html = renderWeeks(pred, ws, showList);
+    else if (ui.nav === "done") {
       const ds = all("tasks").filter(t => t.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
       const byDay = {};
       ds.forEach(t => { const k = t.doneAt ? ymd(new Date(t.doneAt)) : "earlier"; (byDay[k] = byDay[k] || []).push(t); });
@@ -734,6 +761,25 @@ dialog h2 { margin: 0; font-size: 17px; }
       if (done.length && ui.showDone) html += `<div class="group"><div class="group-h">Completed <span class="n">${done.length}</span></div>${done.map(t => taskRow(t, { showList })).join("")}</div>`;
     }
     $("#task-list").innerHTML = html;
+  }
+
+  function renderWeeks(pred, ws, showList) {
+    const t0 = today(), ts = all("tasks").filter(t => pred(t) && (ui.showDone || !t.done));
+    const nowWk = t0 >= ws ? Math.floor(diffDays(t0, ws) / 7) + 1 : 0;
+    const groups = {};
+    ts.forEach(t => { const k = !t.due ? 9999 : t.due < ws ? 0 : Math.floor(diffDays(t.due, ws) / 7) + 1; (groups[k] = groups[k] || []).push(t); });
+    const keys = Object.keys(groups).map(Number).sort((a, b) => a - b);
+    if (!keys.length) return emptyBox("tasks", "No tasks yet. Add one above, for example “Read chapter 2 next fri”.");
+    return keys.map(k => {
+      const list = groups[k].sort((a, b) => a.done - b.done || sortTasks(a, b));
+      const done = list.filter(t => t.done).length;
+      let label;
+      if (k === 9999) label = "No date";
+      else if (k === 0) label = "Before week 1";
+      else { const a = addDays(ws, (k - 1) * 7), b = addDays(a, 6); label = `Week ${k} <span class="range">· ${fmtMD(a)} – ${fmtMD(b)}</span>`; }
+      const late = k !== 9999 && k < nowWk && done < list.length;
+      return `<div class="group ${k < nowWk && !late ? "past" : ""}"><div class="group-h ${k === nowWk ? "now" : late ? "late" : ""}">${label}${k === nowWk ? ' <span class="now-tag">This week</span>' : ""}<span class="pill">${done}/${list.length}</span></div>${list.map(t => taskRow(t, { showList })).join("")}</div>`;
+    }).join("");
   }
 
   function renderDetail(force) {
@@ -767,7 +813,7 @@ dialog h2 { margin: 0; font-size: 17px; }
         <div class="tags-edit">${(t.tags || []).map(g => `<span class="tag-chip">#${esc(g)}<button data-tag-del="${esc(g)}" aria-label="Remove tag ${esc(g)}">${ic("x", 12)}</button></span>`).join("")}<input type="text" id="d-tag-new" placeholder="Type a tag, press Enter" aria-label="Add a tag"></div>
       </div>
       <div class="d-grid">
-        <div class="field"><label for="d-list">List</label><select id="d-list"><option value="inbox">Inbox</option>${lists.map(l => `<option value="${l.id}" ${t.listId === l.id ? "selected" : ""}>${esc(l.name)}</option>`).join("")}</select></div>
+        <div class="field"><label for="d-list">List</label><select id="d-list"><option value="inbox">Inbox</option>${lists.filter(l => !l.group).map(l => `<option value="${l.id}" ${t.listId === l.id ? "selected" : ""}>${esc(l.name)}</option>`).join("")}${[...new Set(lists.filter(l => l.group).map(l => l.group))].map(g => `<optgroup label="${esc(g)}">${lists.filter(l => l.group === g).map(l => `<option value="${l.id}" ${t.listId === l.id ? "selected" : ""}>${esc(l.name)}</option>`).join("")}</optgroup>`).join("")}</select></div>
         <div class="field"><label for="d-repeat">Repeat</label><select id="d-repeat">${Object.entries(REPEAT).map(([k, n]) => `<option value="${k}" ${(t.repeat || "") === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>
       </div>
       <div class="d-foot">
@@ -1049,7 +1095,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   $("#timer-task").addEventListener("change", e => { timer.taskId = e.target.value; saveTimer(); });
   setInterval(() => {
     if (timer.running || ui.view === "focus") tick();
-    const want = timer.running ? `${$("#clock").textContent} · Tally` : "Tally";
+    const want = timer.running ? `${$("#clock").textContent} · 小吉罐頭的賺錢日記` : "小吉罐頭的賺錢日記";
     if (document.title !== want) document.title = want;
   }, 500);
 
@@ -1067,6 +1113,9 @@ dialog h2 { margin: 0; font-size: 17px; }
     editList = id ? S.lists[id] : null;
     $("#list-dlg-title").textContent = editList ? "Edit list" : "New list";
     $("#l-name").value = editList?.name || "";
+    $("#l-group").value = editList ? editList.group || "" : (ui.nav.startsWith("group:") ? ui.nav.slice(6) : "");
+    $("#l-week").value = editList ? editList.weekStart || "" : (ui.nav.startsWith("group:") ? weekStartFor(ui.nav) || "" : "");
+    $("#group-opts").innerHTML = [...new Set(all("lists").map(l => l.group).filter(Boolean))].map(g => `<option value="${esc(g)}"></option>`).join("");
     listColor = editList?.color || COLORS[all("lists").length % COLORS.length];
     colorPicker($("#l-colors"), listColor, c => listColor = c);
     $("#l-del").hidden = !editList; resetArm($("#l-del"));
@@ -1074,7 +1123,8 @@ dialog h2 { margin: 0; font-size: 17px; }
   }
   $("#list-form").addEventListener("submit", e => {
     e.preventDefault(); const name = $("#l-name").value.trim(); if (!name) return;
-    const l = editList ? { ...editList, name, color: listColor } : { id: uid(), name, color: listColor, created: Date.now(), order: all("lists").length };
+    const extra = { group: $("#l-group").value.trim(), weekStart: $("#l-week").value || null };
+    const l = editList ? { ...editList, name, color: listColor, ...extra } : { id: uid(), name, color: listColor, created: Date.now(), order: all("lists").length, ...extra };
     save("lists", l); $("#list-dlg").close();
     if (!editList) { ui.nav = "list:" + l.id; ui.view = "tasks"; saveUI(); render(); }
   });
