@@ -102,7 +102,7 @@ button { cursor: pointer; }
 .group-h .n { font-weight: 500; font-family: var(--f-mono); }
 .group-h.late { color: var(--late); }
 .group-h.now { color: var(--accent); }
-.composer.daily .ctl-due, .composer.daily .ctl-list, .composer.daily .ctl-repeat { display: none; }
+.composer.daily .ctl-due, .composer.daily .ctl-time, .composer.daily .ctl-prio, .composer.daily .ctl-list, .composer.daily .ctl-repeat, .composer.daily .comp-row { display: none; }
 .carry { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); background: var(--hover); border-radius: 10px; padding: 8px 12px; }
 .today-progress { display: grid; gap: 6px; font-size: 12.5px; color: var(--muted); }
 .today-progress .prog { height: 6px; border-radius: 3px; }
@@ -336,8 +336,8 @@ dialog h2 { margin: 0; font-size: 17px; }
         <div class="comp-body" id="comp-body" hidden>
           <div class="comp-row">
             <label class="ctl ctl-due"><span>DATE</span><input type="date" id="c-due"></label>
-            <label class="ctl"><span>TIME</span><input type="time" id="c-time"></label>
-            <div class="ctl"><span>PRIORITY</span><div class="prio-pick" id="c-prio" role="group" aria-label="Priority"></div></div>
+            <label class="ctl ctl-time"><span>TIME</span><input type="time" id="c-time"></label>
+            <div class="ctl ctl-prio"><span>PRIORITY</span><div class="prio-pick" id="c-prio" role="group" aria-label="Priority"></div></div>
             <label class="ctl ctl-list"><span>LIST</span><select id="c-list"></select></label>
             <label class="ctl ctl-repeat"><span>REPEAT</span><select id="c-repeat"></select></label>
           </div>
@@ -843,10 +843,10 @@ dialog h2 { margin: 0; font-size: 17px; }
       <div class="d-top">
         <button class="icon-btn d-back" data-close-detail aria-label="Close details">${ic("back")}</button>
         <button class="cb ${t.done ? "on" : ""}" style="--pc:${priColor(effPri(t))}" data-check="${t.id}" aria-label="${t.done ? "Mark as not done" : "Complete task"}">${CHECK}</button>
-        <input type="date" id="d-due" value="${t.due || ""}" aria-label="Date">
+        ${t.daily ? `<span class="muted" style="font-size:12.5px">On today's list</span><span class="grow"></span>` : `<input type="date" id="d-due" value="${t.due || ""}" aria-label="Date">
         <input type="time" id="d-time" value="${t.time || ""}" ${t.due ? "" : "disabled"} aria-label="Time">
         <span class="grow"></span>
-        <div class="prio-pick" role="group" aria-label="Priority">${PRI.map(p => `<button data-prio="${p.v}" aria-pressed="${(t.priority || 0) === p.v}" title="${p.n} priority" aria-label="${p.n} priority" style="--pc:${p.c}">${ic("flag", 17, 2)}</button>`).join("")}</div>
+        <div class="prio-pick" role="group" aria-label="Priority">${PRI.map(p => `<button data-prio="${p.v}" aria-pressed="${(t.priority || 0) === p.v}" title="${p.n} priority" aria-label="${p.n} priority" style="--pc:${p.c}">${ic("flag", 17, 2)}</button>`).join("")}</div>`}
       </div>
       ${escalated(t) ? `<div class="esc-note">Due ${esc(fmtDue(t))}: this Important task now counts as Urgent &amp; important.</div>` : ""}
       <input type="text" id="d-title" class="d-title" value="${esc(t.title)}" maxlength="200" aria-label="Task name">
@@ -862,7 +862,7 @@ dialog h2 { margin: 0; font-size: 17px; }
         <div class="d-label">TAGS</div>
         <div class="tags-edit">${(t.tags || []).map(g => `<span class="tag-chip">#${esc(g)}<button data-tag-del="${esc(g)}" aria-label="Remove tag ${esc(g)}">${ic("x", 12)}</button></span>`).join("")}<input type="text" id="d-tag-new" list="tag-opts" placeholder="Type a tag, press Enter" aria-label="Add a tag"></div>
       </div>
-      <div class="d-grid">
+      <div class="d-grid" ${t.daily ? "hidden" : ""}>
         <div class="field"><label for="d-list">List</label><select id="d-list"><option value="inbox">Inbox</option>${lists.filter(l => !l.group).map(l => `<option value="${l.id}" ${t.listId === l.id ? "selected" : ""}>${esc(l.name)}</option>`).join("")}${[...new Set(lists.filter(l => l.group).map(l => l.group))].map(g => `<optgroup label="${esc(g)}">${lists.filter(l => l.group === g).map(l => `<option value="${l.id}" ${t.listId === l.id ? "selected" : ""}>${esc(l.name)}</option>`).join("")}</optgroup>`).join("")}</select></div>
         <div class="field"><label for="d-repeat">Repeat</label><select id="d-repeat">${Object.entries(REPEAT).map(([k, n]) => `<option value="${k}" ${(t.repeat || "") === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>
       </div>
@@ -1064,6 +1064,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     $("#c-tag-new").value = keep;
   }
   function hint(p) {
+    if (ui.view === "today") { $("#qa-hint").innerHTML = `<span>Press Enter to add to today's list</span>`; return; }
     if (!qa.value.trim()) { $("#qa-hint").innerHTML = `<span>Tip: you can also type dates and tags, e.g. “next fri 3pm #reading !high”</span>`; return; }
     $("#qa-hint").innerHTML = p.tokens.length ? `<span>Detected:</span>` + p.tokens.map(t => `<span class="tok">${esc(t)}</span>`).join("") : `<span>Press Enter to add</span>`;
   }
@@ -1087,13 +1088,13 @@ dialog h2 { margin: 0; font-size: 17px; }
   }
   function compOpen() { if (!comp.open) { comp.open = true; $("#comp-body").hidden = false; } }
   function compSubmit() {
-    const p = parseQuick(qa.value);
-    if (!p.title) { toast("Type a name for the task."); qa.focus(); return; }
-    let due = $("#c-due").value || null; const time = $("#c-time").value || null, repeat = $("#c-repeat").value;
     const daily = ui.view === "today";
+    const p = daily ? { title: qa.value.replace(/(^|\s)#[^\s#]+/g, " ").replace(/\s+/g, " ").trim() } : parseQuick(qa.value);
+    if (!p.title) { toast("Type a name for the task."); qa.focus(); return; }
+    let due = $("#c-due").value || null; const time = daily ? null : $("#c-time").value || null, repeat = $("#c-repeat").value;
     if (daily) due = null; else if ((time || repeat) && !due) due = today();
     const t = { id: uid(), title: p.title, notes: $("#c-notes").value.trim(), listId: $("#c-list").value || "inbox", due, time,
-      priority: comp.priority, tags: compTags(), subtasks: [], repeat: daily ? "" : repeat, done: false, doneAt: null, created: Date.now() };
+      priority: daily ? 0 : comp.priority, tags: daily ? [...new Set((qa.value.match(/#[^\s#]+/g) || []).map(x => x.slice(1)).concat(comp.manualTags))].filter(x => !comp.removedTags.includes(x)) : compTags(), subtasks: [], repeat: daily ? "" : repeat, done: false, doneAt: null, created: Date.now() };
     if (daily) { t.daily = today(); t.listId = "inbox"; t.order = dailyAll().filter(x => x.daily === t.daily).length; }
     save("tasks", t);
     toast(`Added “${t.title}”${t.due ? ", " + fmtDue(t) : ""}`);
