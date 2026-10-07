@@ -918,7 +918,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     if (!comp.touched.due) $("#c-due").value = p.due || d.due;
     if (!comp.touched.time) $("#c-time").value = p.time || "";
     if (!comp.touched.listId) $("#c-list").value = p.listId || d.listId;
-    if (!comp.touched.priority) comp.priority = p.priority ?? (S.lists[$("#c-list").value]?.weekStart ? 2 : d.priority);
+    if (!comp.touched.priority) comp.priority = p.priority ?? (S.lists[$("#c-list").value]?.group ? 2 : d.priority);
     if (!comp.touched.repeat) $("#c-repeat").value = p.repeat || "";
     comp.parsedTags = p.tags; comp.defTags = d.tags;
     renderCompPrio(); renderCompTags(); hint(p);
