@@ -121,7 +121,6 @@ button { cursor: pointer; }
 .sub.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
 .sub .grip { cursor: grab; color: var(--muted); opacity: .5; padding: 0 2px; font-size: 12px; letter-spacing: -2px; user-select: none; }
 .sub:hover .grip { opacity: 1; }
-.sub { grid-template-columns: auto auto minmax(0, 1fr) auto; }
 .trash-row .task-right { gap: 6px; }
 .trash-note { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); padding: 2px 6px 6px; }
 .list-link { font-size: 12.5px; font-weight: 600; color: var(--accent); text-decoration: none; background: var(--accent-soft); border-radius: 999px; padding: 4px 10px; white-space: nowrap; }
@@ -132,9 +131,6 @@ button { cursor: pointer; }
 .remind small { color: var(--muted); }
 .remind .acts { display: flex; gap: 6px; justify-content: flex-end; }
 .group-h.alldone { color: var(--accent); }
-.done-fold { border: 0; background: none; color: var(--muted); font-size: 12.5px; font-weight: 600; padding: 6px 10px; text-align: left; border-radius: 8px; display: flex; gap: 6px; align-items: center; width: 100%; }
-.done-fold:hover { background: var(--hover); color: var(--fg); }
-.done-fold .ar { width: 12px; display: inline-block; }
 .composer { display: grid; gap: 8px; }
 .comp-body { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 12px; box-shadow: var(--shadow); }
 .comp-row { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; }
@@ -199,7 +195,11 @@ button { cursor: pointer; }
 .d-sec { display: grid; gap: 6px; }
 .prog { height: 4px; border-radius: 2px; background: var(--hover); overflow: hidden; }
 .prog i { display: block; height: 100%; background: var(--accent); }
-.sub { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 2px 0; }
+.sub { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 2px 0; border-radius: 6px; }
+.sub:hover { background: var(--hover); }
+.sub .icon-btn { opacity: 0; }
+.sub:hover .icon-btn, .sub .icon-btn:focus-visible { opacity: 1; }
+@media (hover: none) { .sub .icon-btn { opacity: .6; } }
 .sub .cb { width: 15px; height: 15px; border-width: 1.5px; margin: 0; --pc: var(--muted); }
 .sub input { border: 0; background: none; outline: none; padding: 3px 0; width: 100%; }
 .sub.done input { text-decoration: line-through; color: var(--muted); }
@@ -531,7 +531,7 @@ dialog h2 { margin: 0; font-size: 17px; }
 
   // ---------- UI state ----------
   const ui = Object.assign({ view: "tasks", nav: "today", showDone: true, calMonth: null, calDay: null }, lsGet(LS_UI) || {});
-  ui.sel = null; ui.openFolds = new Set(); ui.showSubDone = false;
+  ui.sel = null;
   if (["tasks", "calendar", "matrix"].includes(location.hash.slice(1))) ui.view = location.hash.slice(1);
   if (!["tasks", "calendar", "matrix"].includes(ui.view)) ui.view = "tasks";
   const saveUI = () => lsSet(LS_UI, { view: ui.view, nav: ui.nav, showDone: ui.showDone });
@@ -796,8 +796,8 @@ dialog h2 { margin: 0; font-size: 17px; }
     const keys = Object.keys(groups).map(Number).sort((a, b) => a - b);
     if (!keys.length) return emptyBox("tasks", "No tasks yet. Add one above, for example “Read chapter 2 next fri”.");
     return keys.map(k => {
-      const list = groups[k].sort((a, b) => a.done - b.done || sortTasks(a, b));
-      const openT = list.filter(t => !t.done), doneT = list.filter(t => t.done), fk = ui.nav + "|" + k, exp = ui.openFolds.has(fk);
+      const list = groups[k].sort(sortTasks);
+      const doneT = list.filter(t => t.done), fk = ui.nav + "|" + k;
       const done = list.filter(t => t.done).length;
       let label;
       if (k === 9999) label = "No date";
@@ -805,7 +805,7 @@ dialog h2 { margin: 0; font-size: 17px; }
       else { const a = addDays(ws, (k - 1) * 7), b = addDays(a, 6); label = `Week ${k} <span class="range">· ${fmtMD(a)} – ${fmtMD(b)}</span>`; }
       const late = k !== 9999 && k < nowWk && done < list.length;
       const allDone = doneT.length === list.length;
-      return `<div class="group ${k < nowWk && !late ? "past" : ""}"><div class="group-h ${k === nowWk ? "now" : late ? "behind" : allDone ? "alldone" : ""}" ${late ? `title="${list.length - done} not done yet"` : ""}>${label}${k === nowWk ? ' <span class="now-tag">This week</span>' : ""}<span class="pill">${done}/${list.length}</span></div>${openT.map(t => taskRow(t, { showList, drag: true, gk: fk })).join("")}${doneT.length ? `<button class="done-fold" data-fold="${esc(fk)}" aria-expanded="${exp}"><span class="ar">${exp ? "▾" : "▸"}</span>${allDone ? "All done" : "Completed"} · ${doneT.length}</button>${exp ? doneT.map(t => taskRow(t, { showList })).join("") : ""}` : ""}</div>`;
+      return `<div class="group ${k < nowWk && !late ? "past" : ""}"><div class="group-h ${k === nowWk ? "now" : late ? "behind" : allDone ? "alldone" : ""}" ${late ? `title="${list.length - done} not done yet"` : ""}>${label}${k === nowWk ? ' <span class="now-tag">This week</span>' : ""}<span class="pill">${done}/${list.length}</span></div>${list.map(t => taskRow(t, { showList, drag: true, gk: fk })).join("")}</div>`;
     }).join("");
   }
 
@@ -835,8 +835,7 @@ dialog h2 { margin: 0; font-size: 17px; }
       <div class="d-sec">
         <div class="d-label"><span>SUBTASKS</span><span class="num">${subs.length ? `${sd}/${subs.length}` : ""}</span></div>
         ${subs.length ? `<div class="prog"><i style="width:${Math.round(sd / subs.length * 100)}%"></i></div>` : ""}
-        <div>${subs.filter(s => !s.done).map(subRow).join("")}</div>
-        ${sd ? `<button class="done-fold" data-subfold aria-expanded="${ui.showSubDone}"><span class="ar">${ui.showSubDone ? "▾" : "▸"}</span>Completed · ${sd}</button>${ui.showSubDone ? `<div>${subs.filter(s => s.done).map(subRow).join("")}</div>` : ""}` : ""}
+        <div>${subs.map(subRow).join("")}</div>
         <input type="text" class="line-input" id="d-sub-new" placeholder="+ Add a subtask, press Enter" aria-label="Add a subtask">
       </div>
       <div class="d-sec">
@@ -943,8 +942,6 @@ dialog h2 { margin: 0; font-size: 17px; }
       else toggleDone(chk.dataset.check);
       return;
     }
-    const fold = tgt.closest("[data-fold]");
-    if (fold) { const k = fold.dataset.fold; ui.openFolds.has(k) ? ui.openFolds.delete(k) : ui.openFolds.add(k); render({ skipDetail: true }); return; }
     const dt = tgt.closest("[data-del-task]");
     if (dt) {
       e.stopPropagation();
@@ -1174,7 +1171,6 @@ dialog h2 { margin: 0; font-size: 17px; }
   });
   det.addEventListener("click", e => {
     const t = getT(ui.sel); if (!t) return;
-    if (e.target.closest("[data-subfold]")) { ui.showSubDone = !ui.showSubDone; renderDetail(true); return; }
     const p = e.target.closest("[data-prio]"); if (p) { patchTask(t.id, { priority: +p.dataset.prio }); renderDetail(true); return; }
     const sc = e.target.closest("[data-sub-check]"); if (sc) { patchTask(t.id, { subtasks: (t.subtasks || []).map(s => s.id === sc.dataset.subCheck ? { ...s, done: !s.done } : s) }); renderDetail(true); return; }
     const sx = e.target.closest("[data-sub-del]"); if (sx) { patchTask(t.id, { subtasks: (t.subtasks || []).filter(s => s.id !== sx.dataset.subDel) }); renderDetail(true); return; }
