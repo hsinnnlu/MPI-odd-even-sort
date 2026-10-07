@@ -195,8 +195,10 @@ button { cursor: pointer; }
 .d-sec { display: grid; gap: 6px; }
 .prog { height: 4px; border-radius: 2px; background: var(--hover); overflow: hidden; }
 .prog i { display: block; height: 100%; background: var(--accent); }
-.sub { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 2px 0; border-radius: 6px; }
+.sub { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto auto; gap: 6px; align-items: center; padding: 2px 0; border-radius: 6px; }
 .sub:hover { background: var(--hover); }
+.sub-link { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; color: var(--accent); text-decoration: none; }
+.sub-link:hover { background: var(--accent-soft); }
 .sub .icon-btn { opacity: 0; }
 .sub:hover .icon-btn, .sub .icon-btn:focus-visible { opacity: 1; }
 @media (hover: none) { .sub .icon-btn { opacity: .6; } }
@@ -732,7 +734,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     const dd = t.due ? diffDays(t.due, today()) : null;
     const meta = [];
     if (sub.length) meta.push(`<span>${ic("sub", 12)}${sd}/${sub.length}</span>`);
-    const links = urlsIn(t.notes);
+    const links = [...new Set([...urlsIn(t.notes), ...(t.subtasks || []).map(subUrl).filter(Boolean)])];
     if (links.length) meta.push(`<span title="${plural(links.length, "link")}">${ic("link", 12)}${links.length}</span>`);
     else if (t.notes) meta.push(`<span title="Has notes">${ic("note", 12)}</span>`);
     if (escalated(t)) meta.push(`<span class="chip-urgent" title="Important task due within 3 days">Urgent</span>`);
@@ -810,7 +812,8 @@ dialog h2 { margin: 0; font-size: 17px; }
     }).join("");
   }
 
-  const subRow = s => `<div class="sub ${s.done ? "done" : ""}" data-sub-row="${s.id}"><span class="grip" draggable="true" data-sub-grip="${s.id}" title="Drag to reorder" aria-hidden="true">⋮⋮</span><button class="cb ${s.done ? "on" : ""}" data-sub-check="${s.id}" aria-label="${s.done ? "Uncheck" : "Check"} subtask">${CHECK}</button><input type="text" id="sub-${s.id}" data-sub-text="${s.id}" value="${esc(s.t)}" aria-label="Subtask"><button class="icon-btn" data-sub-del="${s.id}" aria-label="Delete subtask">${ic("x", 14)}</button></div>`;
+  const subUrl = s => s.url || urlsIn(s.t)[0] || "";
+  const subRow = s => `<div class="sub ${s.done ? "done" : ""}" data-sub-row="${s.id}"><span class="grip" draggable="true" data-sub-grip="${s.id}" title="Drag to reorder" aria-hidden="true">⋮⋮</span><button class="cb ${s.done ? "on" : ""}" data-sub-check="${s.id}" aria-label="${s.done ? "Uncheck" : "Check"} subtask">${CHECK}</button><input type="text" id="sub-${s.id}" data-sub-text="${s.id}" value="${esc(s.t)}" aria-label="Subtask">${subUrl(s) ? `<a class="sub-link" href="${esc(subUrl(s))}" target="_blank" rel="noopener" title="Open ${esc(subUrl(s))}" aria-label="Open link for ${esc(s.t)}">${ic("link", 15)}</a>` : "<span></span>"}<button class="icon-btn" data-sub-del="${s.id}" aria-label="Delete subtask">${ic("x", 14)}</button></div>`;
   function renderDetail(force) {
     const el = $("#detail"), t = getT(ui.sel);
     if (!t) { el.dataset.id = ""; el.innerHTML = `<div class="d-empty">${ic("tasks", 54, 1.3)}<div>Select a task to edit its date, subtasks and tags.</div></div>`; return; }
@@ -837,7 +840,7 @@ dialog h2 { margin: 0; font-size: 17px; }
         <div class="d-label"><span>SUBTASKS</span><span class="num">${subs.length ? `${sd}/${subs.length}` : ""}</span></div>
         ${subs.length ? `<div class="prog"><i style="width:${Math.round(sd / subs.length * 100)}%"></i></div>` : ""}
         <div>${subs.map(subRow).join("")}</div>
-        <input type="text" class="line-input" id="d-sub-new" placeholder="+ Add a subtask, press Enter" aria-label="Add a subtask">
+        <input type="text" class="line-input" id="d-sub-new" placeholder="+ Add a subtask (paste a link to attach it), press Enter" aria-label="Add a subtask">
       </div>
       <div class="d-sec">
         <div class="d-label">TAGS</div>
@@ -1183,7 +1186,9 @@ dialog h2 { margin: 0; font-size: 17px; }
     const t = S.tasks[ui.sel]; if (!t || e.key !== "Enter" || e.isComposing) return;
     if (e.target.id === "d-sub-new" && e.target.value.trim()) {
       e.preventDefault(); flush(t.id);
-      patchTask(t.id, { subtasks: [...(S.tasks[t.id].subtasks || []), { id: uid(), t: e.target.value.trim(), done: false }] });
+      const raw = e.target.value.trim(), u = urlsIn(raw)[0];
+      const sub = u ? { id: uid(), t: raw.replace(u, "").replace(/\s+/g, " ").trim() || shortUrl(u), url: u, done: false } : { id: uid(), t: raw, done: false };
+      patchTask(t.id, { subtasks: [...(S.tasks[t.id].subtasks || []), sub] });
       renderDetail(true); $("#d-sub-new").focus();
     } else if (e.target.id === "d-tag-new" && e.target.value.trim()) {
       e.preventDefault(); flush(t.id);
