@@ -141,6 +141,10 @@ button { cursor: pointer; }
 .chip-tag { background: var(--hover); color: var(--muted); border-radius: 5px; padding: 0 6px; }
 .task-right { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; white-space: nowrap; padding-top: 1px; }
 .due.late { color: var(--late); font-weight: 600; }
+.task-del { border: 0; background: none; color: var(--muted); padding: 3px; margin: -3px -4px -3px 0; border-radius: 6px; display: inline-grid; place-items: center; opacity: 0; }
+.task:hover .task-del, .task-del:focus-visible { opacity: 1; }
+.task-del:hover { color: var(--p3); background: color-mix(in srgb, var(--p3) 12%, transparent); }
+@media (hover: none) { .task-del { opacity: .7; } }
 .due.today { color: var(--accent); font-weight: 600; }
 .empty { text-align: center; color: var(--muted); padding: 40px 16px; display: grid; justify-items: center; gap: 10px; }
 .empty .ic { color: var(--line); }
@@ -661,7 +665,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     return `<div class="task ${t.done ? "is-done" : ""} ${ui.sel === t.id ? "sel" : ""}" data-task="${t.id}" ${o.drag ? 'draggable="true"' : ""}>
       <button class="cb" style="--pc:${priColor(t.priority)}" data-check="${t.id}" aria-label="${t.done ? "Mark as not done" : "Complete"}: ${esc(t.title)}">${CHECK}</button>
       <div style="min-width:0"><div class="task-title">${esc(t.title)}</div>${meta.length ? `<div class="task-meta">${meta.join("")}</div>` : ""}</div>
-      <div class="task-right">${t.repeat ? `<span title="${REPEAT[t.repeat]}">${ic("repeat", 13)}</span>` : ""}${dueTxt ? `<span class="due ${!t.done && dd < 0 ? "late" : !t.done && dd === 0 ? "today" : ""}">${esc(dueTxt)}</span>` : ""}</div>
+      <div class="task-right">${t.repeat ? `<span title="${REPEAT[t.repeat]}">${ic("repeat", 13)}</span>` : ""}${dueTxt ? `<span class="due ${!t.done && dd < 0 ? "late" : !t.done && dd === 0 ? "today" : ""}">${esc(dueTxt)}</span>` : ""}<button class="task-del" data-del-task="${t.id}" title="Delete task" aria-label="Delete ${esc(t.title)}">${ic("trash", 15)}</button></div>
     </div>`;
   }
   const emptyBox = (icon, msg) => `<div class="empty">${ic(icon, 48, 1.4)}<div>${loaded ? msg : "Loading…"}</div></div>`;
@@ -836,6 +840,15 @@ dialog h2 { margin: 0; font-size: 17px; }
       const row = chk.closest(".task");
       if (row && !row.classList.contains("is-done")) { row.classList.add("is-done"); setTimeout(() => toggleDone(chk.dataset.check), 260); }
       else toggleDone(chk.dataset.check);
+      return;
+    }
+    const dt = tgt.closest("[data-del-task]");
+    if (dt) {
+      e.stopPropagation();
+      const id = dt.dataset.delTask, t = S.tasks[id]; if (!t) return;
+      clearTimeout(pendT[id]); delete pend[id]; if (ui.sel === id) ui.sel = null;
+      remove("tasks", id);
+      toast(`Deleted “${t.title}”`, "Undo", () => save("tasks", t));
       return;
     }
     const task = tgt.closest("[data-task]");
