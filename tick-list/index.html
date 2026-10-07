@@ -102,6 +102,20 @@ button { cursor: pointer; }
 .group-h .n { font-weight: 500; font-family: var(--f-mono); }
 .group-h.late { color: var(--late); }
 .group-h.now { color: var(--accent); }
+.composer { display: grid; gap: 8px; }
+.comp-body { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 12px; box-shadow: var(--shadow); }
+.comp-row { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; }
+.ctl { display: grid; gap: 5px; font-size: 12px; color: var(--muted); min-width: 0; }
+.ctl > span { font-weight: 700; letter-spacing: .05em; font-size: 11px; }
+.ctl input[type=date], .ctl input[type=time] { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 6px 8px; color: var(--fg); font-size: 13px; }
+.ctl select { width: auto; min-width: 140px; color: var(--fg); font-size: 13px; padding: 6px 8px; }
+.ctl .prio-pick { height: 33px; align-items: center; }
+.tag-sug { border: 1px dashed var(--line); background: none; color: var(--muted); border-radius: 6px; padding: 2px 8px; font-size: 12.5px; }
+.tag-sug:hover { border-color: var(--accent); color: var(--accent); }
+#c-tags input { font-size: 13px; }
+#c-notes { resize: vertical; min-height: 42px; color: var(--fg); }
+.comp-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.comp-foot .r { display: flex; gap: 8px; margin-left: auto; }
 .group-h .range { font-weight: 500; }
 .group-h .pill { margin-left: auto; font-weight: 600; font-size: 11.5px; padding: 1px 8px; border-radius: 999px; background: var(--hover); color: var(--muted); font-family: var(--f-mono); }
 .group-h.now .pill { background: var(--accent-soft); color: var(--accent); }
@@ -204,45 +218,6 @@ select, .input { border: 1px solid var(--line); border-radius: 8px; background: 
 .quad .qlist { display: grid; gap: 1px; flex: 1; align-content: start; }
 .quad .qa input { padding: 7px 10px; font-size: 13px; border-radius: 8px; }
 
-/* Focus */
-.focus-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; min-width: 0; }
-.timer { display: grid; justify-items: center; gap: 18px; padding-block: 28px; }
-.seg { display: inline-flex; background: var(--hover); border-radius: 999px; padding: 3px; gap: 2px; }
-.seg button { border: 0; background: none; padding: 6px 14px; border-radius: 999px; font-size: 13px; color: var(--muted); font-weight: 600; }
-.seg button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: var(--shadow); }
-.seg button:disabled { cursor: default; }
-.ring { position: relative; width: min(260px, 70vw); aspect-ratio: 1; max-width: 100%; }
-.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-.ring .trk { stroke: var(--hover); }
-.ring .prg { stroke: var(--accent); transition: stroke-dashoffset .4s linear; }
-.ring.brk .prg { stroke: var(--p1); }
-.ring .center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 4px; }
-.clock { font-family: var(--f-mono); font-size: clamp(40px, 11vw, 54px); font-weight: 600; letter-spacing: -.02em; line-height: 1; }
-.clock-sub { font-size: 13px; color: var(--muted); }
-.timer-ctrl { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-.stats3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.stat { background: var(--bg); border-radius: 10px; padding: 10px 12px; }
-.stat b { display: block; font-family: var(--f-mono); font-size: 20px; }
-.stat span { font-size: 12px; color: var(--muted); }
-.rec { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 8px 2px; border-bottom: 1px solid var(--line); font-size: 13px; }
-.rec:last-child { border-bottom: 0; }
-.rec .when { font-size: 12px; color: var(--muted); }
-
-/* Habits */
-.habits { display: grid; gap: 10px; }
-.habit { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 16px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
-.habit-name { display: flex; align-items: center; gap: 10px; min-width: 0; border: 0; background: none; text-align: left; padding: 0; }
-.habit-name b { overflow-wrap: anywhere; }
-.habit-name small { display: block; color: var(--muted); font-size: 12px; font-weight: 500; }
-.hdays { display: flex; gap: 6px; }
-.hday { display: grid; justify-items: center; gap: 3px; font-size: 11px; color: var(--muted); }
-.hcheck { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line); background: none; display: grid; place-items: center; color: transparent; padding: 0; }
-.hcheck:hover { border-color: var(--hc); }
-.hcheck.on { background: var(--hc); border-color: var(--hc); color: var(--surface); }
-.hcheck.today { border-style: dashed; }
-.hcheck.today.on { border-style: solid; }
-
 /* Dialog */
 dialog { border: 1px solid var(--line); border-radius: 14px; padding: 0; background: var(--surface); color: var(--fg); width: min(400px, calc(100vw - 32px)); box-shadow: 0 12px 40px rgba(0,0,0,.25); }
 dialog::backdrop { background: rgba(10,18,14,.45); }
@@ -276,9 +251,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   .cell { min-height: 54px; align-items: center; }
   .cchip, .cmore { display: none; }
   .cdots { display: flex; }
-  .matrix, .focus-grid { grid-template-columns: minmax(0, 1fr); }
-  .habit { grid-template-columns: minmax(0, 1fr); }
-  .hdays { justify-content: space-between; }
+  .matrix { grid-template-columns: minmax(0, 1fr); }
 }
 @media (min-width: 761px) { .side.hidden-wide { display: none; } }
 @media (prefers-reduced-motion: reduce) { .detail, .side, .ring .prg, .cb { transition: none; } }
@@ -290,8 +263,6 @@ dialog h2 { margin: 0; font-size: 17px; }
     <button class="rail-btn" data-go="tasks" id="go-tasks"></button>
     <button class="rail-btn" data-go="calendar" id="go-calendar"></button>
     <button class="rail-btn" data-go="matrix" id="go-matrix"></button>
-    <button class="rail-btn" data-go="focus" id="go-focus"></button>
-    <button class="rail-btn" data-go="habits" id="go-habits"></button>
   </nav>
 
   <aside class="side" id="side" aria-label="Lists"></aside>
@@ -304,13 +275,25 @@ dialog h2 { margin: 0; font-size: 17px; }
         <h1 id="list-title">Today</h1>
         <button class="icon-btn" id="toggle-done" title="Show or hide completed tasks"></button>
       </div>
-      <div>
+      <div class="composer" id="composer">
         <form class="qa" id="qa-form" autocomplete="off">
           <span id="qa-ic"></span>
-          <input id="qa" type="text" placeholder="Add a task, e.g. Submit report tomorrow 3pm #school !high" aria-label="Add a task">
+          <input id="qa" type="text" placeholder="Add a task, e.g. HW2 next fri 11:59pm #homework !high" aria-label="Task name">
         </form>
-        <div class="qa-hint" id="qa-hint"></div>
+        <div class="comp-body" id="comp-body" hidden>
+          <div class="comp-row">
+            <label class="ctl"><span>DATE</span><input type="date" id="c-due"></label>
+            <label class="ctl"><span>TIME</span><input type="time" id="c-time"></label>
+            <div class="ctl"><span>PRIORITY</span><div class="prio-pick" id="c-prio" role="group" aria-label="Priority"></div></div>
+            <label class="ctl"><span>LIST</span><select id="c-list"></select></label>
+            <label class="ctl"><span>REPEAT</span><select id="c-repeat"></select></label>
+          </div>
+          <div class="ctl"><span>TAGS</span><div class="tags-edit" id="c-tags"></div></div>
+          <textarea id="c-notes" class="input" rows="2" placeholder="Notes (optional)" aria-label="Notes"></textarea>
+          <div class="comp-foot"><div class="qa-hint" id="qa-hint"></div><div class="r"><button type="button" class="btn" id="c-cancel">Cancel</button><button type="button" class="btn primary" id="c-add">Add task</button></div></div>
+        </div>
       </div>
+      <datalist id="tag-opts"></datalist>
       <div id="task-list"></div>
     </section>
 
@@ -346,45 +329,6 @@ dialog h2 { margin: 0; font-size: 17px; }
       </div>
     </section>
 
-    <!-- Focus -->
-    <section class="view" id="view-focus" hidden>
-      <div class="vh"><h1>Pomodoro</h1></div>
-      <div class="focus-grid">
-        <div class="panel timer">
-          <div class="seg" role="group" aria-label="Timer mode">
-            <button data-mode="pomo" id="mode-pomo">Focus 25</button>
-            <button data-mode="short" id="mode-short">Short 5</button>
-            <button data-mode="long" id="mode-long">Long 15</button>
-          </div>
-          <div class="ring" id="ring">
-            <svg viewBox="0 0 120 120" aria-hidden="true">
-              <circle class="trk" cx="60" cy="60" r="54" fill="none" stroke-width="6"></circle>
-              <circle class="prg" id="ring-prg" cx="60" cy="60" r="54" fill="none" stroke-width="6" stroke-linecap="round" stroke-dasharray="339.29" stroke-dashoffset="0"></circle>
-            </svg>
-            <div class="center"><div class="clock" id="clock">25:00</div><div class="clock-sub" id="clock-sub">Ready</div></div>
-          </div>
-          <div class="field" style="width:min(300px,100%)"><label for="timer-task">Focusing on</label><select id="timer-task"></select></div>
-          <div class="timer-ctrl">
-            <button class="btn primary big" id="t-start">Start</button>
-            <button class="btn big" id="t-stop">Abandon</button>
-          </div>
-        </div>
-        <div style="display:grid;gap:16px;min-width:0">
-          <div class="panel"><div class="stats3" id="focus-stats"></div></div>
-          <div class="panel"><div class="d-label" style="margin-bottom:6px">Focus log</div><div id="focus-log"></div></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Habits -->
-    <section class="view" id="view-habits" hidden>
-      <div class="vh"><h1>Habits</h1><span class="muted num" id="habit-date"></span></div>
-      <form class="qa" id="habit-form" autocomplete="off">
-        <span class="qa-ic"></span>
-        <input id="habit-new" type="text" placeholder="Add a habit, e.g. Drink 2 L of water" aria-label="Add a habit" maxlength="60">
-      </form>
-      <div class="habits" id="habit-list"></div>
-    </section>
   </main>
 
   <section class="detail" id="detail" aria-label="Task details"></section>
@@ -401,24 +345,15 @@ dialog h2 { margin: 0; font-size: 17px; }
     <div class="dlg-actions"><button type="button" class="btn danger" id="l-del">Delete list</button><div class="r"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary" type="submit">Save</button></div></div>
   </form>
 </dialog>
-<dialog id="habit-dlg">
-  <form id="habit-edit-form">
-    <h2>Edit habit</h2>
-    <div class="field"><label for="h-name">Name</label><input class="input" id="h-name" type="text" required maxlength="60"></div>
-    <div class="field"><label>Color</label><div class="colors" id="h-colors"></div></div>
-    <div class="dlg-actions"><button type="button" class="btn danger" id="h-del">Delete habit</button><div class="r"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary" type="submit">Save</button></div></div>
-  </form>
-</dialog>
 <div class="toast" id="toast" hidden><span id="toast-msg"></span><button id="toast-act" hidden></button></div>
 
 <script>
 (() => {
-  const LS_DATA = "tick-data-v1", LS_UI = "tick-ui-v1", LS_TIMER = "tick-timer-v1";
+  const LS_DATA = "tick-data-v1", LS_UI = "tick-ui-v1";
   const COLORS = ["#13795b", "#3b7bd6", "#d6453d", "#db8f12", "#8b5cc4", "#c2477e", "#2b8c95", "#6b7570"];
   const PRI = [{ v: 3, n: "High", c: "var(--p3)" }, { v: 2, n: "Medium", c: "var(--p2)" }, { v: 1, n: "Low", c: "var(--p1)" }, { v: 0, n: "None", c: "var(--p0)" }];
   const priColor = v => ["var(--p0)", "var(--p1)", "var(--p2)", "var(--p3)"][v || 0];
   const REPEAT = { "": "Does not repeat", daily: "Daily", weekdays: "Every weekday", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly" };
-  const MODES = { pomo: 25, short: 5, long: 15 };
   const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const MO = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -484,7 +419,7 @@ dialog h2 { margin: 0; font-size: 17px; }
   }
 
   // ---------- store ----------
-  const S = { lists: {}, tasks: {}, habits: {}, focus: {} };
+  const S = { lists: {}, tasks: {} };
   const COLLS = Object.keys(S);
   let db = null, loaded = false, syncNote = "";
   const all = c => Object.values(S[c]);
@@ -540,7 +475,8 @@ dialog h2 { margin: 0; font-size: 17px; }
   // ---------- UI state ----------
   const ui = Object.assign({ view: "tasks", nav: "today", showDone: true, calMonth: null, calDay: null }, lsGet(LS_UI) || {});
   ui.sel = null;
-  if (["tasks", "calendar", "matrix", "focus", "habits"].includes(location.hash.slice(1))) ui.view = location.hash.slice(1);
+  if (["tasks", "calendar", "matrix"].includes(location.hash.slice(1))) ui.view = location.hash.slice(1);
+  if (!["tasks", "calendar", "matrix"].includes(ui.view)) ui.view = "tasks";
   const saveUI = () => lsSet(LS_UI, { view: ui.view, nav: ui.nav, showDone: ui.showDone });
 
   // ---------- quick add parsing ----------
@@ -615,7 +551,7 @@ dialog h2 { margin: 0; font-size: 17px; }
     const t = { id: uid(), title: p.title, notes: "", listId: p.listId || defaults.listId || "inbox",
       due: p.due ?? defaults.due ?? null, time: p.time || null, priority: p.priority ?? defaults.priority ?? 0,
       tags: [...new Set([...(defaults.tags || []), ...p.tags])], subtasks: [], repeat: p.repeat || "",
-      done: false, doneAt: null, created: Date.now(), pomos: 0 };
+      done: false, doneAt: null, created: Date.now() };
     save("tasks", t); return t;
   }
 
@@ -672,8 +608,6 @@ dialog h2 { margin: 0; font-size: 17px; }
     if (ui.view === "tasks") renderTasks();
     if (ui.view === "calendar") renderCalendar();
     if (ui.view === "matrix") renderMatrix();
-    if (ui.view === "focus") renderFocus();
-    if (ui.view === "habits") renderHabits();
     if (!opts.skipDetail) renderDetail();
     const hasDetail = ["tasks", "calendar", "matrix"].includes(ui.view);
     $("#detail").hidden = !hasDetail;
@@ -682,10 +616,10 @@ dialog h2 { margin: 0; font-size: 17px; }
   }
 
   function renderRail() {
-    const items = { tasks: "Tasks", calendar: "Calendar", matrix: "Matrix", focus: "Focus", habits: "Habits" };
+    const items = { tasks: "Tasks", calendar: "Calendar", matrix: "Matrix" };
     for (const k in items) {
       const b = $("#go-" + k);
-      b.innerHTML = ic(k, 21) + `<span>${items[k]}</span>` + (k === "focus" && timer.running ? '<i class="live" title="Timer running"></i>' : "");
+      b.innerHTML = ic(k, 21) + `<span>${items[k]}</span>`;
       if (ui.view === k) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
     }
   }
@@ -727,11 +661,12 @@ dialog h2 { margin: 0; font-size: 17px; }
     return `<div class="task ${t.done ? "is-done" : ""} ${ui.sel === t.id ? "sel" : ""}" data-task="${t.id}" ${o.drag ? 'draggable="true"' : ""}>
       <button class="cb" style="--pc:${priColor(t.priority)}" data-check="${t.id}" aria-label="${t.done ? "Mark as not done" : "Complete"}: ${esc(t.title)}">${CHECK}</button>
       <div style="min-width:0"><div class="task-title">${esc(t.title)}</div>${meta.length ? `<div class="task-meta">${meta.join("")}</div>` : ""}</div>
-      <div class="task-right">${t.repeat ? `<span title="${REPEAT[t.repeat]}">${ic("repeat", 13)}</span>` : ""}${t.pomos ? `<span class="num" title="${plural(t.pomos, "pomodoro")} done">${t.pomos}</span>${ic("focus", 13)}` : ""}${dueTxt ? `<span class="due ${!t.done && dd < 0 ? "late" : !t.done && dd === 0 ? "today" : ""}">${esc(dueTxt)}</span>` : ""}</div>
+      <div class="task-right">${t.repeat ? `<span title="${REPEAT[t.repeat]}">${ic("repeat", 13)}</span>` : ""}${dueTxt ? `<span class="due ${!t.done && dd < 0 ? "late" : !t.done && dd === 0 ? "today" : ""}">${esc(dueTxt)}</span>` : ""}</div>
     </div>`;
   }
   const emptyBox = (icon, msg) => `<div class="empty">${ic(icon, 48, 1.4)}<div>${loaded ? msg : "Loading…"}</div></div>`;
 
+  let lastNav = null;
   function renderTasks() {
     if (!navInfo(ui.nav)) ui.nav = "today";
     const info = navInfo(ui.nav);
@@ -739,9 +674,12 @@ dialog h2 { margin: 0; font-size: 17px; }
     $("#toggle-done").innerHTML = ic("eye");
     $("#toggle-done").setAttribute("aria-pressed", ui.showDone);
     $("#toggle-done").hidden = ui.nav === "done";
-    $("#qa-form").hidden = ui.nav === "done";
-    $("#qa-hint").hidden = ui.nav === "done";
+    $("#composer").hidden = ui.nav === "done";
     const pred = basePred(ui.nav);
+    if (ui.nav !== lastNav) { lastNav = ui.nav; compReset(false); }
+    else if (!comp.open) compReset(false);
+    else { const v = $("#c-list").value; $("#c-list").innerHTML = listOptions(v); $("#c-list").value = v; }
+    $("#tag-opts").innerHTML = [...new Set([...COURSE_TAGS, ...allTags()])].map(g => `<option value="${esc(g)}"></option>`).join("");
     const showList = !ui.nav.startsWith("list:");
     const ws = weekStartFor(ui.nav);
     let html = "";
@@ -810,15 +748,15 @@ dialog h2 { margin: 0; font-size: 17px; }
       </div>
       <div class="d-sec">
         <div class="d-label">TAGS</div>
-        <div class="tags-edit">${(t.tags || []).map(g => `<span class="tag-chip">#${esc(g)}<button data-tag-del="${esc(g)}" aria-label="Remove tag ${esc(g)}">${ic("x", 12)}</button></span>`).join("")}<input type="text" id="d-tag-new" placeholder="Type a tag, press Enter" aria-label="Add a tag"></div>
+        <div class="tags-edit">${(t.tags || []).map(g => `<span class="tag-chip">#${esc(g)}<button data-tag-del="${esc(g)}" aria-label="Remove tag ${esc(g)}">${ic("x", 12)}</button></span>`).join("")}<input type="text" id="d-tag-new" list="tag-opts" placeholder="Type a tag, press Enter" aria-label="Add a tag"></div>
       </div>
       <div class="d-grid">
         <div class="field"><label for="d-list">List</label><select id="d-list"><option value="inbox">Inbox</option>${lists.filter(l => !l.group).map(l => `<option value="${l.id}" ${t.listId === l.id ? "selected" : ""}>${esc(l.name)}</option>`).join("")}${[...new Set(lists.filter(l => l.group).map(l => l.group))].map(g => `<optgroup label="${esc(g)}">${lists.filter(l => l.group === g).map(l => `<option value="${l.id}" ${t.listId === l.id ? "selected" : ""}>${esc(l.name)}</option>`).join("")}</optgroup>`).join("")}</select></div>
         <div class="field"><label for="d-repeat">Repeat</label><select id="d-repeat">${Object.entries(REPEAT).map(([k, n]) => `<option value="${k}" ${(t.repeat || "") === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>
       </div>
       <div class="d-foot">
-        <span class="muted">${created ? `Created ${MO[created.getMonth()]} ${created.getDate()}` : ""}${t.pomos ? ` · ${plural(t.pomos, "pomodoro")}` : ""}${t.example ? " · Sample" : ""}</span>
-        <div class="acts"><button class="btn" data-focus-task="${t.id}">${ic("focus", 15)}Focus</button><button class="btn danger" id="d-del">${ic("trash", 15)}Delete</button></div>
+        <span class="muted">${created ? `Created ${MO[created.getMonth()]} ${created.getDate()}` : ""}${t.example ? " · Sample" : ""}</span>
+        <div class="acts"><button class="btn danger" id="d-del">${ic("trash", 15)}Delete</button></div>
       </div>
     </div>`;
     autoGrow($("#d-notes"));
@@ -866,81 +804,6 @@ dialog h2 { margin: 0; font-size: 17px; }
     });
   }
 
-  // ---------- focus ----------
-  const timer = Object.assign({ mode: "pomo", duration: 1500, startedAt: null, elapsed: 0, running: false, taskId: "", rounds: 0 }, lsGet(LS_TIMER) || {});
-  const saveTimer = () => lsSet(LS_TIMER, timer);
-  const elapsedNow = () => timer.elapsed + (timer.running ? (Date.now() - timer.startedAt) / 1000 : 0);
-  function setMode(m) { if (timer.running) return; timer.mode = m; timer.duration = MODES[m] * 60; timer.elapsed = 0; timer.startedAt = null; saveTimer(); tick(); }
-  let audio = null;
-  function chime() {
-    try {
-      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
-      [0, .18, .36].forEach((t, i) => { const o = audio.createOscillator(), g = audio.createGain(); o.frequency.value = [660, 880, 990][i]; g.gain.setValueAtTime(.14, audio.currentTime + t); g.gain.exponentialRampToValueAtTime(.001, audio.currentTime + t + .3); o.connect(g).connect(audio.destination); o.start(audio.currentTime + t); o.stop(audio.currentTime + t + .32); });
-    } catch {}
-  }
-  function tick() {
-    const el = elapsedNow(), left = Math.max(0, timer.duration - el);
-    if (timer.running && left <= 0) {
-      timer.running = false; timer.elapsed = 0; timer.startedAt = null; chime();
-      if (timer.mode === "pomo") {
-        const mins = Math.round(timer.duration / 60);
-        save("focus", { id: uid(), taskId: timer.taskId || "", minutes: mins, date: today(), at: Date.now() });
-        const t = S.tasks[timer.taskId]; if (t) patchTask(t.id, { pomos: (t.pomos || 0) + 1 });
-        timer.rounds = (timer.rounds || 0) + 1;
-        toast(`Pomodoro done (${mins} min). Take a break.`);
-        setMode(timer.rounds % 4 === 0 ? "long" : "short");
-      } else { toast("Break's over. Ready for the next pomodoro?"); setMode("pomo"); }
-      saveTimer(); render(); return;
-    }
-    if (ui.view !== "focus") return;
-    const sec = Math.ceil(left);
-    $("#clock").textContent = `${pad(Math.floor(sec / 60))}:${pad(sec % 60)}`;
-    $("#ring-prg").setAttribute("stroke-dashoffset", (339.29 * (el / timer.duration)).toFixed(2));
-    $("#ring").classList.toggle("brk", timer.mode !== "pomo");
-    $("#clock-sub").textContent = timer.running ? (timer.mode === "pomo" ? "Focusing" : "On break") : el > 0 ? "Paused" : timer.mode === "pomo" ? "Ready" : "Break time";
-    $("#t-start").textContent = timer.running ? "Pause" : el > 0 ? "Resume" : "Start";
-    $("#t-stop").hidden = !(timer.running || el > 0);
-    $$("[data-mode]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.mode === timer.mode); b.disabled = timer.running; });
-  }
-  function renderFocus() {
-    if (loaded && timer.taskId && !S.tasks[timer.taskId]) timer.taskId = "";
-    const open = all("tasks").filter(t => !t.done || t.id === timer.taskId).sort(sortTasks);
-    $("#timer-task").innerHTML = `<option value="">No specific task</option>` + open.map(t => `<option value="${t.id}" ${t.id === timer.taskId ? "selected" : ""}>${esc(t.title)}</option>`).join("");
-    const t0 = today(), fs = all("focus").sort((a, b) => (b.at || 0) - (a.at || 0));
-    const todayF = fs.filter(f => f.date === t0);
-    const mins = todayF.reduce((a, f) => a + (f.minutes || 0), 0);
-    const totalMins = fs.reduce((a, f) => a + (f.minutes || 0), 0);
-    $("#focus-stats").innerHTML = `<div class="stat"><b>${todayF.length}</b><span>Today's pomos</span></div><div class="stat"><b>${Math.floor(mins / 60)}<small style="font-size:12px">h</small> ${mins % 60}<small style="font-size:12px">m</small></b><span>Focused today</span></div><div class="stat"><b>${fs.length}</b><span>Total pomos</span></div>`;
-    $("#focus-log").innerHTML = fs.length ? fs.slice(0, 12).map(f => {
-      const t = S.tasks[f.taskId], d = new Date(f.at || parseD(f.date));
-      return `<div class="rec"><div style="min-width:0"><div style="overflow-wrap:anywhere">${t ? esc(t.title) : "No specific task"}</div><div class="when">${f.date === t0 ? "Today" : fmtMD(f.date)}, ${fmtTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`)}</div></div><span class="num">${f.minutes} min</span></div>`;
-    }).join("") + `<div class="muted" style="font-size:12px;padding-top:8px">${Math.round(totalMins / 6) / 10} hours in total</div>` : `<div class="muted" style="padding:6px 0">${loaded ? "Finish your first pomodoro and it will show up here." : "Loading…"}</div>`;
-    tick();
-  }
-
-  // ---------- habits ----------
-  function streakOf(h) {
-    const c = h.checks || {}; let d = today(), n = 0;
-    if (!c[d]) d = addDays(d, -1);
-    while (c[d]) { n++; d = addDays(d, -1); }
-    return n;
-  }
-  function renderHabits() {
-    const t0 = today();
-    $("#habit-date").textContent = fmtMD(t0);
-    $$("#view-habits .qa-ic").forEach(e => e.innerHTML = ic("plus", 16, 2.2));
-    const days = [...Array(7)].map((_, i) => addDays(t0, i - 6));
-    const hs = all("habits").sort((a, b) => (a.created || 0) - (b.created || 0));
-    const month = t0.slice(0, 7);
-    $("#habit-list").innerHTML = hs.length ? hs.map(h => {
-      const c = h.checks || {}, mCount = Object.keys(c).filter(k => k.startsWith(month)).length;
-      return `<div class="habit" style="--hc:${h.color || "var(--accent)"}">
-        <button class="habit-name" data-habit-edit="${h.id}"><span class="dot" style="background:${h.color};width:12px;height:12px;border-radius:50%"></span><span style="min-width:0"><b>${esc(h.name)}</b><small>${plural(streakOf(h), "day")} streak · ${mCount} this month${h.example ? " · Sample" : ""}</small></span></button>
-        <div class="hdays">${days.map(d => `<div class="hday"><span>${d === t0 ? "Today" : WD[parseD(d).getDay()]}</span><button class="hcheck ${c[d] ? "on" : ""} ${d === t0 ? "today" : ""}" data-hcheck="${h.id}" data-day="${d}" aria-pressed="${!!c[d]}" aria-label="${esc(h.name)}, ${fmtMD(d)}">${CHECK.replace("<svg", '<svg width="15" height="15"')}</button></div>`).join("")}</div>
-      </div>`;
-    }).join("") : emptyBox("habits", "No habits yet. Add one above and check in each day.");
-  }
-
   // ---------- actions ----------
   function select(id) {
     if (ui.sel && ui.sel !== id) flush(ui.sel);
@@ -975,8 +838,6 @@ dialog h2 { margin: 0; font-size: 17px; }
       else toggleDone(chk.dataset.check);
       return;
     }
-    const ft = tgt.closest("[data-focus-task]");
-    if (ft) { timer.taskId = ft.dataset.focusTask; if (!timer.running) setMode("pomo"); saveTimer(); ui.view = "focus"; ui.sel = null; saveUI(); render(); return; }
     const task = tgt.closest("[data-task]");
     if (task) { e.stopPropagation(); select(task.dataset.task); return; }
     const cell = tgt.closest("[data-day]:not([data-hcheck])");
@@ -985,13 +846,6 @@ dialog h2 { margin: 0; font-size: 17px; }
     if (tgt.closest("[data-close]")) { tgt.closest("dialog").close(); return; }
     if (tgt.closest("#add-list")) { openList(null); return; }
     const le = tgt.closest("[data-list-edit]"); if (le) { openList(le.dataset.listEdit); return; }
-    const he = tgt.closest("[data-habit-edit]"); if (he) { openHabit(he.dataset.habitEdit); return; }
-    const hc = tgt.closest("[data-hcheck]");
-    if (hc) {
-      const h = S.habits[hc.dataset.hcheck], d = hc.dataset.day, checks = { ...(h.checks || {}) };
-      if (checks[d]) delete checks[d]; else checks[d] = true;
-      save("habits", { ...h, checks }); return;
-    }
     if (tgt.closest("#clear-ex")) { clearExamples(); return; }
     if (tgt.closest("#toggle-done")) { ui.showDone = !ui.showDone; saveUI(); render({ skipDetail: true }); return; }
   });
@@ -1000,20 +854,96 @@ dialog h2 { margin: 0; font-size: 17px; }
     if ((e.key === "Enter" || e.key === " ") && e.target.matches(".cell")) { e.preventDefault(); ui.calDay = e.target.dataset.day; render({ skipDetail: true }); }
   });
 
-  // quick add
+  // composer
   const qa = $("#qa");
   $("#qa-ic").innerHTML = ic("plus", 16, 2.2);
-  function hint() {
-    const v = qa.value.trim();
-    if (!v) { $("#qa-hint").innerHTML = `<span>Try: today, tomorrow, friday, next mon, 10/15, Oct 15, 3pm, in 3 days, every week, #tag, !high, ^list</span>`; return; }
-    const p = parseQuick(v);
-    $("#qa-hint").innerHTML = p.tokens.map(t => `<span class="tok">${esc(t)}</span>`).join("") + `<span>Press Enter to add</span>`;
+  const COURSE_TAGS = ["homework", "reading", "lecture", "exam", "quiz", "project"];
+  const comp = { open: false, touched: {}, priority: 0, manualTags: [], removedTags: [], parsedTags: [], defTags: [] };
+  function compDefaults() {
+    const d = navDefaults(ui.nav);
+    let listId = d.listId || "inbox";
+    if (ui.nav.startsWith("group:")) { const first = all("lists").filter(l => l.group === ui.nav.slice(6)).sort((a, b) => (a.order || 0) - (b.order || 0))[0]; if (first) listId = first.id; }
+    return { due: d.due || "", priority: 0, listId, tags: d.tags || [] };
   }
-  qa.addEventListener("input", hint);
-  $("#qa-form").addEventListener("submit", e => {
-    e.preventDefault(); if (!qa.value.trim()) return;
-    const t = createTask(qa.value, navDefaults(ui.nav));
-    if (t) { qa.value = ""; hint(); toast(`Added “${t.title}”${t.due ? ", " + fmtDue(t) : ""}`); }
+  const compTags = () => [...new Set([...comp.defTags, ...comp.parsedTags, ...comp.manualTags])].filter(t => !comp.removedTags.includes(t));
+  function listOptions(sel) {
+    const lists = all("lists").sort((a, b) => (a.order || 0) - (b.order || 0) || (a.created || 0) - (b.created || 0));
+    const o = l => `<option value="${l.id}" ${l.id === sel ? "selected" : ""}>${esc(l.name)}</option>`;
+    return `<option value="inbox">Inbox</option>` + lists.filter(l => !l.group).map(o).join("") +
+      [...new Set(lists.filter(l => l.group).map(l => l.group))].map(g => `<optgroup label="${esc(g)}">${lists.filter(l => l.group === g).map(o).join("")}</optgroup>`).join("");
+  }
+  function allTags() { return [...new Set(all("tasks").flatMap(t => t.tags || []))].sort(); }
+  function renderCompPrio() {
+    $("#c-prio").innerHTML = PRI.map(p => `<button type="button" data-cprio="${p.v}" aria-pressed="${comp.priority === p.v}" title="${p.n} priority" aria-label="${p.n} priority" style="--pc:${p.c}">${ic("flag", 17, 2)}</button>`).join("");
+  }
+  function renderCompTags() {
+    const sel = compTags();
+    const l = S.lists[$("#c-list").value];
+    const sug = [...new Set([...(l && l.weekStart ? COURSE_TAGS : []), ...allTags()])].filter(t => !sel.includes(t)).slice(0, 14);
+    const keep = $("#c-tag-new")?.value || "";
+    $("#c-tags").innerHTML = sel.map(g => `<span class="tag-chip">#${esc(g)}<button type="button" data-ctag-del="${esc(g)}" aria-label="Remove tag ${esc(g)}">${ic("x", 12)}</button></span>`).join("") +
+      sug.map(g => `<button type="button" class="tag-sug" data-ctag-add="${esc(g)}">+ ${esc(g)}</button>`).join("") +
+      `<input type="text" id="c-tag-new" list="tag-opts" placeholder="New tag, press Enter" aria-label="New tag">`;
+    $("#c-tag-new").value = keep;
+  }
+  function hint(p) {
+    if (!qa.value.trim()) { $("#qa-hint").innerHTML = `<span>Tip: you can also type dates and tags, e.g. “next fri 3pm #reading !high”</span>`; return; }
+    $("#qa-hint").innerHTML = p.tokens.length ? `<span>Detected:</span>` + p.tokens.map(t => `<span class="tok">${esc(t)}</span>`).join("") : `<span>Press Enter to add</span>`;
+  }
+  function compSync() {
+    const p = parseQuick(qa.value || ""), d = compDefaults();
+    if (!comp.touched.due) $("#c-due").value = p.due || d.due;
+    if (!comp.touched.time) $("#c-time").value = p.time || "";
+    if (!comp.touched.priority) comp.priority = p.priority ?? d.priority;
+    if (!comp.touched.listId) $("#c-list").value = p.listId || d.listId;
+    if (!comp.touched.repeat) $("#c-repeat").value = p.repeat || "";
+    comp.parsedTags = p.tags; comp.defTags = d.tags;
+    renderCompPrio(); renderCompTags(); hint(p);
+  }
+  function compReset(keepOpen) {
+    qa.value = ""; $("#c-notes").value = "";
+    comp.touched = {}; comp.manualTags = []; comp.removedTags = [];
+    $("#c-repeat").innerHTML = Object.entries(REPEAT).map(([k, n]) => `<option value="${k}">${n}</option>`).join("");
+    $("#c-list").innerHTML = listOptions(compDefaults().listId);
+    comp.open = keepOpen; $("#comp-body").hidden = !keepOpen;
+    compSync();
+  }
+  function compOpen() { if (!comp.open) { comp.open = true; $("#comp-body").hidden = false; } }
+  function compSubmit() {
+    const p = parseQuick(qa.value);
+    if (!p.title) { toast("Type a name for the task."); qa.focus(); return; }
+    let due = $("#c-due").value || null; const time = $("#c-time").value || null, repeat = $("#c-repeat").value;
+    if ((time || repeat) && !due) due = today();
+    const t = { id: uid(), title: p.title, notes: $("#c-notes").value.trim(), listId: $("#c-list").value || "inbox", due, time,
+      priority: comp.priority, tags: compTags(), subtasks: [], repeat, done: false, doneAt: null, created: Date.now() };
+    save("tasks", t);
+    toast(`Added “${t.title}”${t.due ? ", " + fmtDue(t) : ""}`);
+    compReset(true); qa.focus();
+  }
+  qa.addEventListener("focus", compOpen);
+  qa.addEventListener("input", () => { compOpen(); compSync(); });
+  qa.addEventListener("keydown", e => { if (e.key === "Escape") { e.stopPropagation(); compReset(false); qa.blur(); } });
+  $("#qa-form").addEventListener("submit", e => { e.preventDefault(); compSubmit(); });
+  $("#c-add").addEventListener("click", compSubmit);
+  $("#c-cancel").addEventListener("click", () => compReset(false));
+  $("#c-due").addEventListener("change", () => { comp.touched.due = true; });
+  $("#c-time").addEventListener("change", () => { comp.touched.time = true; if ($("#c-time").value && !$("#c-due").value) { $("#c-due").value = today(); comp.touched.due = true; } });
+  $("#c-repeat").addEventListener("change", () => { comp.touched.repeat = true; });
+  $("#c-list").addEventListener("change", () => { comp.touched.listId = true; renderCompTags(); });
+  $("#comp-body").addEventListener("click", e => {
+    const pb = e.target.closest("[data-cprio]"); if (pb) { comp.touched.priority = true; comp.priority = +pb.dataset.cprio; renderCompPrio(); return; }
+    const td = e.target.closest("[data-ctag-del]");
+    if (td) { const g = td.dataset.ctagDel; comp.manualTags = comp.manualTags.filter(x => x !== g); if (compTags().includes(g)) comp.removedTags.push(g); renderCompTags(); return; }
+    const ta = e.target.closest("[data-ctag-add]");
+    if (ta) { const g = ta.dataset.ctagAdd; comp.manualTags.push(g); comp.removedTags = comp.removedTags.filter(x => x !== g); renderCompTags(); }
+  });
+  $("#comp-body").addEventListener("keydown", e => {
+    if (e.target.id === "c-tag-new" && e.key === "Enter" && !e.isComposing) {
+      e.preventDefault();
+      const g = e.target.value.trim().replace(/^#/, "").replace(/\s+/g, "-");
+      if (g) { comp.manualTags.push(g); comp.removedTags = comp.removedTags.filter(x => x !== g); e.target.value = ""; renderCompTags(); $("#c-tag-new").focus(); }
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); compSubmit(); }
   });
   $("#cal-qa-form").addEventListener("submit", e => {
     e.preventDefault(); const v = $("#cal-qa").value; if (!v.trim()) return;
@@ -1084,22 +1014,9 @@ dialog h2 { margin: 0; font-size: 17px; }
     } else if (e.target.id === "d-title") { e.preventDefault(); e.target.blur(); }
   });
 
-  // timer controls
-  $$("[data-mode]").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
-  $("#t-start").addEventListener("click", () => {
-    if (timer.running) { timer.elapsed = elapsedNow(); timer.running = false; timer.startedAt = null; }
-    else { timer.running = true; timer.startedAt = Date.now(); try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); } catch {} }
-    saveTimer(); tick(); renderRail();
-  });
-  $("#t-stop").addEventListener("click", () => { timer.running = false; setMode(timer.mode); renderRail(); toast("Pomodoro abandoned. Nothing was logged."); });
-  $("#timer-task").addEventListener("change", e => { timer.taskId = e.target.value; saveTimer(); });
-  setInterval(() => {
-    if (timer.running || ui.view === "focus") tick();
-    const want = timer.running ? `${$("#clock").textContent} · 小吉罐頭的賺錢日記` : "小吉罐頭的賺錢日記";
-    if (document.title !== want) document.title = want;
-  }, 500);
+  document.title = "小吉罐頭的賺錢日記";
 
-  // lists & habits dialogs
+  // list dialog
   function colorPicker(box, cur, onPick) {
     box.innerHTML = COLORS.map(c => `<button type="button" style="background:${c}" data-c="${c}" aria-pressed="${c === cur}" aria-label="Color ${c}"></button>`).join("");
     box.onclick = e => { const b = e.target.closest("[data-c]"); if (b) { onPick(b.dataset.c); colorPicker(box, b.dataset.c, onPick); } };
@@ -1134,24 +1051,6 @@ dialog h2 { margin: 0; font-size: 17px; }
     for (const t of all("tasks").filter(t => t.listId === id)) await save("tasks", { ...t, listId: "inbox" });
     remove("lists", id); toast("List deleted");
   });
-  let editHabit = null, habitColor = COLORS[0];
-  function openHabit(id) {
-    editHabit = S.habits[id]; if (!editHabit) return;
-    $("#h-name").value = editHabit.name; habitColor = editHabit.color || COLORS[0];
-    colorPicker($("#h-colors"), habitColor, c => habitColor = c);
-    resetArm($("#h-del")); $("#habit-dlg").showModal();
-  }
-  $("#habit-edit-form").addEventListener("submit", e => {
-    e.preventDefault(); const name = $("#h-name").value.trim(); if (!name) return;
-    save("habits", { ...editHabit, name, color: habitColor }); $("#habit-dlg").close();
-  });
-  armBtn($("#h-del"), "Confirm? Check-ins are deleted too", () => { remove("habits", editHabit.id); $("#habit-dlg").close(); toast("Habit deleted"); });
-  $("#habit-form").addEventListener("submit", e => {
-    e.preventDefault(); const name = $("#habit-new").value.trim(); if (!name) return;
-    save("habits", { id: uid(), name, color: COLORS[all("habits").length % COLORS.length], checks: {}, created: Date.now() });
-    $("#habit-new").value = "";
-  });
-
   async function clearExamples() {
     ui.sel = null;
     for (const c of COLLS) for (const x of all(c).filter(x => x.example)) await remove(c, x.id);
@@ -1167,6 +1066,6 @@ dialog h2 { margin: 0; font-size: 17px; }
   }
 
   $$(".menu-btn").forEach(b => b.innerHTML = ic("menu", 20));
-  hint(); render(); tick(); initStore();
+  compReset(false); render(); initStore();
 })();
 </script>
